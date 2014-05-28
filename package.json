@@ -10,7 +10,9 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.3.1",
-    "logfmt": "^1.1.2"
+    "logfmt": "^1.1.2",
+    "pegjs": "^0.8.0",
+    "body-parser": "^1.2.2"
   },
   "engines": {
     "node": "0.10.x"
