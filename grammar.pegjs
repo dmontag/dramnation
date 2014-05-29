@@ -54,9 +54,6 @@ owner
 name
   = qString
 
-thing
-  = name
-
 whisky
   = "whisky" / "whiskey" / "whiskies"
 
@@ -82,10 +79,10 @@ whiskyYear
   = year:number { return ["year", year]; }
 
 whiskyPercentage
-  = p:number "%" { return ["percentage", p]; }
+  = p:float "%" { return ["percentage", p]; }
 
 whiskyBottler
-  = "bottled by" s:string { return ["bottler", s]; }
+  = "bottled by" s:name { return ["bottler", s]; }
 
 caskStrength
   = "cask strength" { return ["caskStrength", true]; }
@@ -113,3 +110,6 @@ string
 
 number
   = n:[0-9]+ { return parseInt(n.join(""), 10); }
+
+float
+  = n:[0-9.]+ { return parseFloat(n.join(""), 10); }

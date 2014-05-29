@@ -45,10 +45,25 @@ function interpret(parsed, res) {
 }
 
 function vlist(args) {
-    return [
-        "MATCH (n:Whisky)-[:" + args[0].toUpperCase() + "]->(o:" + args[0].capitalize() + ") WHERE o.name = {owner} RETURN n.name", 
-        {"owner":args[1].toLowerCase()}
-    ];
+    var type = args[0];
+    var owner = args[1];
+    switch (type) {
+        case "owner":
+            return [
+                "MATCH (n:Whisky)-[:OWNER]->(o:Owner), (n)-[:DISTILLERY]->(d:Distillery) WHERE o.name = {owner} RETURN [d.displayName, n] AS result", 
+                {"owner":owner.toLowerCase()}
+            ];
+        case "distillery":
+            return [
+                "MATCH (n:Whisky)-[:DISTILLERY]->(o:Distillery) WHERE o.name = {owner} RETURN [o.displayName, n] AS result", 
+                {"owner":owner.toLowerCase()}
+            ];
+        case "bottler":
+            return [
+                "MATCH (n:Whisky)-[:BOTTLER]->(o:Bottler), (n)-[:Distillery]->(o:Distillery) WHERE o.name = {owner} RETURN [d.displayName, n] AS result", 
+                {"owner":owner.toLowerCase()}
+            ];
+    }
 }
 
 function vadd(args) {
@@ -59,7 +74,7 @@ function vadd(args) {
         case "distillery":
         case "bottler":
             return [
-                "MERGE (n:" + args[0].capitalize() + " {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN n", 
+                "MERGE (n:" + args[0].capitalize() + " {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN count(*)", 
                 {"name":owner.toLowerCase(), "displayName": owner}
             ];
         case "whisky":
@@ -73,8 +88,6 @@ function vadd(args) {
                 params[d[0]] = d[1];
             });
             params["owner"] = owner.toLowerCase();
-            params["name"] = spec.name.toLowerCase();
-            params["displayName"] = spec.name;
             params["distillery"] = spec.distillery.toLowerCase();
             console.log(params);
 
@@ -82,6 +95,8 @@ function vadd(args) {
             if (spec.name != null) {
                 properties.push("name:{name}");
                 properties.push("displayName:{displayName}");
+                params["name"] = spec.name.toLowerCase();
+                params["displayName"] = spec.name;
             }
             if (params["cask strength"]) {
                 properties.push("caskStrength:{caskStrength}");
@@ -100,7 +115,7 @@ function vadd(args) {
             }
             console.log(properties);
 
-            var query = "MATCH (d:Distillery {name:{distillery}}) MATCH (o:Owner {name:{owner}}) MERGE (w:Whisky {" + properties.join(",") + "}) MERGE (w)-[:DISTILLERY]->(d) MERGE (w)-[:OWNER]->(o) RETURN w";
+            var query = "MATCH (d:Distillery {name:{distillery}}) MATCH (o:Owner {name:{owner}}) MERGE (w:Whisky {" + properties.join(",") + "}) MERGE (w)-[:DISTILLERY]->(d) MERGE (w)-[:OWNER]->(o) RETURN count(*)";
             console.log(query);
 
             return [query, params];

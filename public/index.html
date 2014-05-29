@@ -23,11 +23,11 @@ body {
 
 .console {
     position: absolute;
-    left: 50%;
-    bottom: 10%;
+    left: 40%;
+    bottom: 0%;
     color: white;
     font-family: "Lucida Console", Monaco, monospace;
-    width:40%;
+    width:55%;
 }
 
 #query {
@@ -35,9 +35,8 @@ body {
 }
 
 #result {
-    background-color: gray;
     height: 70%;
-    width: 40%;
+    width: 100%;
 }
 
     </style>
@@ -46,6 +45,7 @@ body {
         $(document).ready(function() {
             $("#query").keypress(function (e) {
                 if (e.which == '13') {
+                    $("#result").html("");
                     var query = $("#query")[0].value;
                     $.post("/app", {query: query}, renderResult);
                 }
@@ -53,7 +53,15 @@ body {
         });
 
         function renderResult(result, status, xhr) {
-            $("#result").innerHTML = result;
+            $("#result").html(result.map(function(d) {
+                var res = d["result"]; 
+                if (res) {
+                    return res[0] + " " + JSON.stringify(res[1]["_data"]["data"]);
+                } else {
+                    return d["count(*)"] == 1 ? "Ok" : "Failed";
+                }
+                
+            }).join("<br/>"));
         }
     </script>
 </head>
@@ -67,6 +75,19 @@ body {
     <div class="console">
         <div id="result"></div>
         <input id="query" type="text"/>
+        <p>
+            Examples:
+            <ul>
+                <li>add owner David</li>
+                <li>add distillery Aberlour</li>
+                <li>add distillery Tamdhu</li>
+                <li>add bottler "Gordon MacPhail"</li>
+                <li>list whisky for owner David</li>
+                <li>list whisky for distillery Aberlour</li>
+                <li>add David's whisky Aberlour Abunadh 60.7% cask strength single cask</li>
+                <li>add David's whisky Tamdhu 1990 single cask bottled by "Gordon MacPhail"</li>
+            </ul>
+        </p>
     </div>
 </body>
 </html>
