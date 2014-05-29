@@ -72,11 +72,8 @@ bottler
 
 
 whiskySpec
-  = name:whiskyName
-    mods:( WS whiskyModifier )* { return {name: name, mods: mods.map(function(d){return d[1];})};}
-
-whiskyName 
-  = name
+  = distillery:name WS whiskyName:name ? WS
+    mods:( WS whiskyModifier )* { return {distillery: distillery, name: whiskyName, mods: mods.map(function(d){return d[1];})};}
 
 whiskyAge
   = age:number "yo" { return ["age", age]; }
@@ -88,11 +85,17 @@ whiskyPercentage
   = p:number "%" { return ["percentage", p]; }
 
 whiskyBottler
-  = "by" s:string { return ["bottler", s]; }
+  = "bottled by" s:string { return ["bottler", s]; }
+
+caskStrength
+  = "cask strength" { return ["caskStrength", true]; }
+
+singleCask
+  = "single cask" { return ["singleCask", true]; }
 
 whiskyModifier
-  = "cask strength"
-  / "single cask"
+  = caskStrength
+  / singleCask
   / whiskyPercentage
   / whiskyAge 
   / whiskyYear 
