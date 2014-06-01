@@ -39,6 +39,14 @@ body {
     width: 100%;
 }
 
+.distilleryName {
+    color: hotpink;
+}
+
+.whiskyName {
+    color: gold;
+}
+
     </style>
     <script src="jquery-2.1.1.js"></script>
     <script>
@@ -53,15 +61,34 @@ body {
         });
 
         function renderResult(result, status, xhr) {
-            $("#result").html(result.map(function(d) {
-                var res = d["result"]; 
-                if (res) {
-                    return res[0] + " " + JSON.stringify(res[1]["_data"]["data"]);
-                } else {
-                    return d["count(*)"] == 1 ? "Ok" : "Failed";
-                }
-                
-            }).join("<br/>"));
+            console.log(result);
+            var html;
+            if (result.error) {
+                html = JSON.stringify(result.error);
+            } else if (result.result) {
+                var data = result.result.map(function(d) { return {data:d["n"]["_data"]["data"], labels:d["labels(n)"]}; });
+                html = data.map(renderItem).join("<br/>");
+            }
+            $("#result").html(html);
+        }
+
+        function renderItem(item) {
+            console.log(item);
+            var result = "<strong><span class='" + getItemNameClass(item.labels) + "'>" + item.data.displayName + "</span></strong> ";
+            delete item.data.name;
+            delete item.data.displayName;
+            result += Object.keys(item.data).map(function (k) {
+                var v = item.data[k];
+                return k + ": " + v;
+            }).join(", ");
+            return result;
+        }
+
+        function getItemNameClass(labels) {
+            switch(labels[0]) {
+                case "Whisky": return "whiskyName";
+                case "Distillery": return "distilleryName";
+            }
         }
     </script>
 </head>
@@ -78,14 +105,9 @@ body {
         <p>
             Examples:
             <ul>
-                <li>add owner David</li>
-                <li>add distillery Aberlour</li>
-                <li>add distillery Tamdhu</li>
-                <li>add bottler "Gordon MacPhail"</li>
-                <li>list whisky for owner David</li>
-                <li>list whisky for distillery Aberlour</li>
-                <li>add David's whisky Aberlour Abunadh 60.7% cask strength single cask</li>
-                <li>add David's whisky Tamdhu 1990 single cask bottled by "Gordon MacPhail"</li>
+                <li>list all (whisky|distilleries)</li>
+                <li>add distillery &lt;name&gt;</li>
+                <li>add whisky &lt;definition&gt;</li>
             </ul>
         </p>
     </div>
