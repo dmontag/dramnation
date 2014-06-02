@@ -121,11 +121,12 @@ body {
             } else if (entry.kind == "TastingNote") {
                 result += renderTastingNote(entry);
             } else {
-                result = "<strong><span class='" + entry.kind + "Name'>" + entry.item.displayName + "</span></strong> ";
-                delete entry.item.name;
-                delete entry.item.displayName;
-                result += Object.keys(entry.item).map(function (k) {
-                    var v = entry.item[k];
+                var data = unwrap(entry.item);
+                result = "<strong><span class='" + entry.kind + "Name'>" + data.displayName + "</span></strong> ";
+                delete data.name;
+                delete data.displayName;
+                result += Object.keys(data).map(function (k) {
+                    var v = data[k];
                     return k + ": " + v;
                 }).join(", ");
             }
