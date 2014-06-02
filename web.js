@@ -40,12 +40,20 @@ app.listen(port, function() {
 
 function interpret(parsed, res) {
     switch(parsed.operation) {
+        case "listEverything": listEverything(res); break;
         case "listAll": listAllOfKind(parsed.kind, res); break;
         case "add": add(parsed, res); break;
         case "set": set(parsed, res); break;
         case "unset": unset(parsed, res); break;
         case "remove": remove(parsed, res); break;
     }
+}
+
+function listEverything(res) {
+    queryResponse("MATCH (n) " + 
+        "OPTIONAL MATCH (n)-[:BOTTLER]->(b:Bottler) " +
+        "OPTIONAL MATCH (n)-[:REGION]->(r:Region) " + 
+        "RETURN {item:n, region:r, bottler:b, kind:head(labels(n))} AS result ORDER BY n.name", {}, res);
 }
 
 function listAllOfKind(kind, res) {
@@ -57,6 +65,18 @@ function listAllOfKind(kind, res) {
         case "distillery": queryResponse(
             "MATCH (d:Distillery) OPTIONAL MATCH (d)-[:REGION]->(r:Region) RETURN {item:d, region:r, kind:head(labels(d))} AS result ORDER BY d.name, r.name", 
             {}, res); break;
+        case "tasting": queryResponse(
+            "MATCH (t:Tasting) " + 
+                "OPTIONAL MATCH (t)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky) " +
+                "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
+                "RETURN {item:t, includedWhisky:collect({item:w, bottler:b, kind:head(labels(w))}), kind:head(labels(t))} AS result ORDER BY t.date",
+            {}, res); break;
+        case "tastingNote": queryResponse(
+            "MATCH (tn:TastingNote)-[:NOTE_FOR]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky), (t:Tasting)-[:INCLUDES]->(tw) " + 
+                "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
+                "WITH w, b, collect({item:tn, kind:head(labels(tn))}) AS notes, t " +
+                "RETURN {item:w, bottler:b, tastings:collect({item:t, notes:notes, kind:head(labels(t))}), kind:'TastingNoteSplat'} AS result",
+            {}, res); break;
         default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
     }
 }
@@ -67,6 +87,8 @@ function add(parsed, res) {
         case "distillery": addDistillery(parsed.name, res); break;
         case "bottler": addBottler(parsed.name, res); break;
         case "whisky": addWhisky(parsed.definition, res); break;
+        case "tasting": addTasting(parsed.name, parsed.date, res); break;
+        case "tastingNote": addTastingNote(parsed.tasting, parsed.whisky, parsed.modifiers, res); break;
     }
 }
 
@@ -122,6 +144,51 @@ function addWhisky(def, res) {
         res);
 }
 
+function addTasting(name, date, res) {
+    queryResponse(
+        "MERGE (n:Tasting {name: {name}}) ON CREATE SET n.displayName = {displayName}, n.date = {date} RETURN {item:n, kind:head(labels(n))} AS result", 
+        {"name":name.toLowerCase(), "displayName":name, date:date},
+        res);
+}
+
+function addTastingNote(tasting, whisky, modifiers, res) {
+    var note = {id:shortid.generate()};
+
+    var nose = modifiers["nose"];
+    var palate = modifiers["palate"];
+    var finish = modifiers["finish"];
+    var overall = modifiers["overall"];
+    var points = modifiers["points"];
+
+    if (nose) {
+        note.nose = nose[0];
+        if (nose[1]) note.nosePoints = nose[1];
+    }
+    if (palate) {
+        note.palate = palate[0];
+        if (palate[1]) note.palatePoints = palate[1];
+    }
+    if (finish) {
+        note.finish = finish[0];
+        if (finish[1]) note.finishPoints = finish[1];
+    }
+    if (overall) {
+        note.overall = overall[0];
+        if (overall[1]) note.overallPoints = overall[1];
+    }
+    if (points) {
+        note.points = points;
+    }
+
+    queryResponse(
+        "MATCH (t:Tasting {name:{tasting}})-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky {id:{whisky}}) " +
+            "CREATE (tn:TastingNote {note}) " +
+            "MERGE (tn)-[:NOTE_FOR]->(tw) " +
+            "RETURN {item:tn, kind:head(labels(tn))} AS result",
+        {tasting:tasting.toLowerCase(), whisky:whisky, note:note}, 
+        res);
+}
+
 function getWhiskyName(def) {
     return def.distillery + (def.specialName ? (" " + def.specialName) : "") +
         (def.modifiers.caskingBottling ? " " + def.modifiers.caskingBottling[0] + "/" + def.modifiers.caskingBottling[1] : "") + 
@@ -129,10 +196,13 @@ function getWhiskyName(def) {
         (def.modifiers.age ? " " + def.modifiers.age + "yo" : "");
 }
 
+/////////// SET ///////////
+
 function set(parsed, res) {
     switch (parsed.kind) {
         case "whisky": setWhisky(parsed, res); break;
         case "distillery": setDistillery(parsed, res); break;
+        case "tasting": setTasting(parsed, res); break;
     }
 }
 
@@ -146,7 +216,6 @@ function setWhisky(parsed, res) {
 }
 
 function setDistillery(parsed, res) {
-    console.log(parsed);
     var name = parsed.name.toLowerCase();
     var key = parsed.modifier[0];
     var value = parsed.modifier[1];
@@ -166,23 +235,59 @@ function setDistillery(parsed, res) {
     }
 }
 
+function setTasting(parsed, res) {
+    var name = parsed.name.toLowerCase();
+    var date = parsed.date;
+    var whisky = parsed.whisky;
+
+    if (date) {
+        queryResponse("MATCH (n:Tasting {name:{name}}) SET n.date = {date} RETURN {item:n, kind:head(labels(n))} AS result",
+            {name:name, date:date}, res);
+    } else if (whisky) {
+        queryResponse("MATCH (n:Tasting {name:{name}}), (w:Whisky {id:{whisky}}) " +
+                "MERGE (n)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w) RETURN {item:n, kind:head(labels(n))} AS result",
+            {name:name, whisky:whisky}, res);
+    }
+}
+
+//////////// UNSET /////////////
+
 function unset(parsed, res) {
     switch (parsed.kind) {
         case "whisky": unsetWhisky(parsed, res); break;
+        case "tasting": unsetTasting(parsed, res); break;
     }
 }
 
 function unsetWhisky(parsed, res) {
-    queryResponse("MATCH (n:Whisky {id:{id}, " + parsed.modifier[0] + ": {value}}) REMOVE n." + parsed.modifier[0] + " RETURN {item:n, kind:head(labels(n))} AS result",
-        {id: parsed.id, value: parsed.modifier[1]},
-        res);
+    var key = parsed.modifier[0];
+    if (key != "bottler") {
+        queryResponse("MATCH (n:Whisky {id:{id}, " + key + ": {value}}) REMOVE n." + key + " RETURN {item:n, kind:head(labels(n))} AS result",
+            {id: parsed.id, value: parsed.modifier[1]},
+            res);
+    }
 }
+
+function unsetTasting(parsed, res) {
+    var name = parsed.name.toLowerCase();
+    var whisky = parsed.whisky;
+    queryResponse("MATCH (n:Tasting {name:{name}}), (w:Whisky {id:{whisky}}) " +
+            "MATCH (n)-[r1:INCLUDES]->(tw:TastingWhisky)-[r2:WHISKY]->(w) " +
+            "WHERE NOT((tw)<-[:NOTE_FOR]-()) " +
+            "DELETE r1, r2, tw",
+        {name:name, whisky:whisky}, res);
+}
+
+/////////// REMOVE ////////////
 
 function remove(parsed, res) {
     switch (parsed.kind) {
         case "whisky": removeWhisky(parsed.id, res); break;
         case "distillery": removeDistillery(parsed.name, res); break;
         case "region": removeRegion(parsed.name, res); break;
+        case "bottler": removeBottler(parsed.name, res); break;
+        case "tasting": removeTasting(parsed.name, res); break;
+        case "tastingNote": removeTastingNote(parsed.id, res); break;
     }
 }
 
@@ -197,15 +302,38 @@ function removeWhisky(id, res) {
 
 function removeDistillery(name, res) {
     queryResponse(
-        "MATCH (d:Distillery {name:{name}}) WHERE NOT((d)--()) DELETE d", 
+        "MATCH (n:Distillery {name:{name}}) WHERE NOT((n)--()) DELETE n", 
         {name: name.toLowerCase()},
         res);
 }
 
 function removeRegion(name, res) {
     queryResponse(
-        "MATCH (r:Region {name:{name}}) WHERE NOT((r)--()) DELETE r", 
+        "MATCH (n:Region {name:{name}}) WHERE NOT((n)--()) DELETE n", 
         {name: name.toLowerCase()},
+        res);
+}
+
+function removeBottler(name, res) {
+    queryResponse(
+        "MATCH (n:Bottler {name:{name}}) WHERE NOT((n)--()) DELETE n", 
+        {name: name.toLowerCase()},
+        res);
+}
+
+function removeTasting(name, res) {
+    queryResponse(
+        "MATCH (n:Tasting {name:{name}}) WHERE NOT((n)--()) DELETE n", 
+        {name: name.toLowerCase()},
+        res);
+}
+
+function removeTastingNote(id, res) {
+    queryResponse(
+        "MATCH (tn:TastingNote {id:{id}}) " +
+        "OPTIONAL MATCH (tn)-[r]-() " +
+        "DELETE tn, r",
+        {id: id},
         res);
 }
 

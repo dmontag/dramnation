@@ -1,7 +1,9 @@
 
 
 start
-  = listAllRegions
+  = listEverything
+
+  / listAllRegions
   / addRegion
   / removeRegion
 
@@ -20,9 +22,23 @@ start
   / unsetWhisky
   / removeWhisky
 
+  / listTastingNotes
+  / addTastingNote
+  / removeTastingNote
+  / listTastings
+  / addTasting
+  / addWhiskyToTasting
+  / setTastingDate
+  / removeWhiskyFromTasting
+  / removeTasting
+
+
+listEverything
+  = "list"i WS "everything"i { return {operation:"listEverything"}; }
+
 
 listAllRegions
-  = "list"i WS "all"i WS "regions"i { return {operation:"listAll", kind:"region"}; }
+  = "list"i WS "regions"i { return {operation:"listAll", kind:"region"}; }
 addRegion
   = "add"i WS "region"i WS name:stringWithSpaces { return {operation:"add", kind:"region", name:name}; }
 removeRegion
@@ -30,7 +46,7 @@ removeRegion
 
 
 listAllDistilleries
-  = "list"i WS "all"i WS "distilleries"i { return {operation:"listAll", kind:"distillery"}; }
+  = "list"i WS "distilleries"i { return {operation:"listAll", kind:"distillery"}; }
 addDistillery
   = "add"i WS "distillery"i WS name:stringWithSpaces { return {operation:"add", kind:"distillery", name:name}; }
 setDistillery
@@ -46,7 +62,7 @@ distilleryRegion
   = "region"i WS region:nameWithSpaces { return ["region", region]; }
 
 listAllBottlers
-  = "list"i WS "all"i WS "bottlers"i { return {operation:"listAll", kind:"bottler"}; }
+  = "list"i WS "bottlers"i { return {operation:"listAll", kind:"bottler"}; }
 addBottler
   = "add"i WS "bottler"i WS name:stringWithSpaces { return {operation:"add", kind:"bottler", name:name}; }
 removeBottler
@@ -54,7 +70,7 @@ removeBottler
 
 
 listAllWhisky
-  = "list"i WS "all"i WS whisky { return {operation:"listAll", kind:"whisky"}; }
+  = "list"i WS whisky { return {operation:"listAll", kind:"whisky"}; }
 addWhisky
   = "add"i WS whisky WS def:whiskyDefinition { return {operation:"add", kind:"whisky", definition:def}; }
 setWhisky
@@ -63,9 +79,60 @@ unsetWhisky
   = "unset"i WS whisky WS id:id WS mod:(ageModifier / whiskyModifier) { return {operation:"unset", kind:"whisky", id:id, modifier:mod}; }
 removeWhisky
   = "remove"i WS whisky WS id:id { return {operation:"remove", kind:"whisky", id: id}; }
-
 whisky
   = "whisky"i
+
+
+listTastings
+  = "list"i WS "tastings"i { return {operation:"listAll", kind:"tasting"}; }
+addTasting
+  = "add"i WS "tasting"i WS name:qString WS "on"i WS date:date { return {operation:"add", kind:"tasting", name:name, date:date}; }
+addWhiskyToTasting
+  = "set"i WS "tasting"i WS name:qString WS "includes"i WS whisky WS id:id { return {operation:"set", kind:"tasting", name:name, whisky:id}; }
+setTastingDate
+  = "set"i WS "tasting"i WS name:qString WS "on"i WS date:date { return {operation:"set", kind:"tasting", name:name, date:date}; }
+removeWhiskyFromTasting
+  = "unset"i WS "tasting"i WS name:qString WS "includes"i WS whisky WS id:id { return {operation:"unset", kind:"tasting", name:name, whisky:id}; }
+removeTasting
+  = "remove"i WS "tasting"i WS name:qString { return {operation:"remove", kind:"tasting", name:name}; }
+
+
+listTastingNotes
+  = "list"i WS "tasting"i WS "notes"i { return {operation:"listAll", kind:"tastingNote"}; }
+addTastingNote
+  = "add"i WS "tasting"i WS "note"i WS "for"i WS whisky WS id:id WS "in"i WS "tasting"i WS name:qString mods:(WS tastingNoteModifier)+
+    { 
+      var modsObject = {};
+      var modsArray = mods.map(function(d) { return d[1]; });
+      modsArray.forEach(
+        function (d) {
+          modsObject[d[0]] = d[1];
+        });
+
+      return {operation:"add", kind:"tastingNote", whisky:id, tasting:name, modifiers:modsObject}; 
+    }
+removeTastingNote
+  = "remove"i WS "tasting"i WS "note"i WS id:id { return {operation:"remove", kind:"tastingNote", id:id}; }
+tastingNoteModifier
+  = tastingNose
+  / tastingPalate
+  / tastingFinish
+  / tastingOverall
+  / tastingPoints
+tastingNose
+  = "nose"i WS points:tastingPointsNumber ? WS desc:qString { return ["nose", [desc, points]]; }
+tastingPalate
+  = "palate"i WS points:tastingPointsNumber ? WS desc:qString { return ["palate", [desc, points]]; }
+tastingFinish
+  = "finish"i WS points:tastingPointsNumber ? WS desc:qString { return ["finish", [desc, points]]; }
+tastingOverall
+  = "overall"i WS points:tastingPointsNumber ? WS desc:qString { return ["overall", [desc, points]]; }
+tastingPoints
+  = num:tastingPointsNumber { return ["points", num]; }
+tastingPointsNumber
+  = points:number "p"i { return points; }
+
+
 
 // Nikka Yoichi 1988/2013 62% OB Single Cask Peated
 // Aberlour "Abunadh" 60,7% OB
@@ -125,6 +192,10 @@ nameWithSpaces
   = s:[a-öA-Ö ]+ { return s.join(""); }
 year
   = n:(("19" / "20") [0-9][0-9]) { return parseInt(n.join(""), 10); }
+month
+  = n:[0123][0-9] { return parseInt(n.join(""), 10); }
+day 
+  = month
 qString
   = string
   / '"' s:stringWithSpaces '"' { return s; }
@@ -138,4 +209,6 @@ float
   = n:[0-9.,]+ { return parseFloat(n.join("").replace(",","."), 10); }
 id
   = id:[a-zA-Z0-9-_]+ { return id.join(""); }
+date
+  = s:([12][90][0-9][0-9] "-" [01][0-9] "-" [0123][0-9]) { return s.join(""); }
 

@@ -31,6 +31,10 @@ body {
     width:55%;
 }
 
+.examples {
+    font-size: 10;
+}
+
 #query {
     width: 100%;
 }
@@ -57,14 +61,16 @@ body {
     color: deepskyblue;
 }
 
-.id {
-    color:#bbb;
+.TastingName {
+    color: orangered;
 }
 
+.TastingNoteName {
+    color: lightyellow;
+}
 
-.DivToScroll{   
-    /*font-size: 12px;*/
-    /*font-weight: bold;*/
+.id {
+    color:#bbb;
 }
 
 .DivWithScroll{
@@ -92,7 +98,10 @@ body {
             if (result.error) {
                 html = JSON.stringify(result.error);
             } else if (result.result) {
-                var data = result.result.map(function(d) { var r = d["result"]; r["item"] = r["item"]["_data"]["data"]; return r; });
+                var data = result.result.map(function(d) { 
+                    // var r = d["result"]; r["item"] = r["item"]["_data"]["data"]; return r; 
+                    return d["result"];
+                });
                 html = data.map(renderEntry).join("<br/>");
             }
             $("#result").html(html);
@@ -100,14 +109,17 @@ body {
 
         function renderEntry(entry) {
             
-            console.log(entry);
             var result = "";
             if (entry.kind == "Whisky") {
-                result = "<span class='id'>" + entry.item.id + "</span> <strong><span class='WhiskyName'>" + entry.item.displayName + "</span></strong> ";
-                result += renderWhiskyModifiers(entry);
+                result += renderWhisky(entry);
             } else if (entry.kind == "Distillery") {
-                result = "<strong><span class='DistilleryName'>" + entry.item.displayName + "</span></strong> ";
-                result += renderDistilleryModifiers(entry);
+                result += renderDistillery(entry);
+            } else if (entry.kind == "Tasting") {
+                result += renderTasting(entry);
+            } else if (entry.kind == "TastingNoteSplat") {
+                result += renderTastingNoteSplat(entry);
+            } else if (entry.kind == "TastingNote") {
+                result += renderTastingNote(entry);
             } else {
                 result = "<strong><span class='" + entry.kind + "Name'>" + entry.item.displayName + "</span></strong> ";
                 delete entry.item.name;
@@ -120,25 +132,78 @@ body {
             return result;
         }
 
-        function renderWhiskyModifiers(entry) {
-            var data = entry.item;
-            var result = "";
+        function renderWhisky(entry) {
+            var data = unwrap(entry.item);
+            var result = "<span class='id'>" + data.id + "</span> <strong><span class='WhiskyName'>" + data.displayName + "</span></strong> ";
             if (data.percentage) result += " " + data.percentage + "%";
             if (data.singleCask) result += " Single Cask";
             if (data.peated) result += " Peated";
             if (data.originalBottling) result += " OB";
-            if (entry.bottler) result += " <span class='BottlerName'>" + props(entry.bottler).displayName + "</span>";
+            if (entry.bottler) result += " <span class='BottlerName'>" + unwrap(entry.bottler).displayName + "</span>";
             return result;
         }
 
-        function renderDistilleryModifiers(entry) {
-            var result = "";
-            if (entry.item.closed) result += " Closed";
-            if (entry.region) result += " in <span class='RegionName'>" + props(entry.region).displayName + "</span>";
+        function renderDistillery(entry) {
+            var data = unwrap(entry.item);
+            var result = "<strong><span class='DistilleryName'>" + data.displayName + "</span></strong> ";
+            if (data.closed) result += " Closed";
+            if (entry.region) result += " in <span class='RegionName'>" + unwrap(entry.region).displayName + "</span>";
             return result;
         }
 
-        function props(map) {
+        function renderTasting(entry) {
+            var data = unwrap(entry.item);
+            var result = "<strong><span class='TastingName'>" + data.displayName + "</span></strong> ";
+            if (data.date) result += " on " + data.date;
+            if (entry.includedWhisky && entry.includedWhisky.length > 0 && entry.includedWhisky[0].item) {
+                entry.includedWhisky.forEach(function(w) {
+                    result += "<br/>&nbsp;&nbsp;" + renderWhisky(w);
+                });
+            }
+            result += "<br/>";
+            return result;
+        }
+
+        function renderTastingNoteSplat(entry) {
+            console.log(entry);
+            var result = renderWhisky(entry);
+            if (entry.tastings && entry.tastings.length > 0 && entry.tastings[0].item) {
+                entry.tastings.forEach(function(t) {
+                    var tastingData = unwrap(t.item);
+                    result += "<br/>&nbsp;&nbsp;<strong><span class='TastingName'>" + tastingData.displayName + "</span></strong> ";
+                    if (tastingData.date) result += " on " + tastingData.date;
+
+                    if (t.notes && t.notes.length > 0 && t.notes[0].item) {
+                        t.notes.forEach(function(n) {
+                            result += "<br/>&nbsp;&nbsp;&nbsp;&nbsp;" + renderNoteLine(n);
+                        });
+                    }
+                });
+            }
+            result += "<br/>";
+            return result;
+        }
+
+        function renderNoteLine(entry) {
+            var data = unwrap(entry.item);
+            var result = "<span class='id'>" + data.id + "</span>";
+            if (data.points) result += " <strong>" + data.points + "p</strong>";
+            if (data.nose) result += " Nose: " + data.nose;
+            if (data.nosePoints) result += " (" + data.nosePoints + "p)";
+            if (data.palate) result += " Palate: " + data.palate;
+            if (data.palatePoints) result += " (" + data.palatePoints + "p)";
+            if (data.finish) result += " Finish: " + data.finish;
+            if (data.finishPoints) result += " (" + data.finishPoints + "p)";
+            if (data.overall) result += " Overall: " + data.overall;
+            if (data.overallPoints) result += " (" + data.overallPoints + "p)";
+            return result;
+        }
+
+        function renderTastingNote(entry) {
+            return renderNoteLine(entry);
+        }
+
+        function unwrap(map) {
             return map["_data"]["data"];
         }
     </script>
@@ -153,16 +218,16 @@ body {
     <div class="console">
         <div id="result" class="DivWithScroll DivToScroll"></div>
         <input id="query" type="text"/>
-        <p>
-            Examples:
-            <ul>
-                <li>list all (whisky|distilleries|bottlers|regions)</li>
-                <li>(add|remove) (distillery|bottler|region) &lt;name&gt;</li>
-                <li>add whisky &lt;definition&gt;</li>
-                <li>remove whisky &lt;id&gt;</li>
-                <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
-            </ul>
-        </p>
+        <ul class="examples">
+            <li>list (whisky|distilleries|bottlers|regions|tastings|tasting notes)</li>
+            <li>(add|remove) (distillery|bottler|region) &lt;name&gt;</li>
+            <li>add whisky &lt;definition&gt;</li>
+            <li>remove whisky &lt;id&gt;</li>
+            <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
+            <li>add tasting &lt;name&gt; on 2014-05-26</li>
+            <li>set tasting &lt;name&gt; includes whisky &lt;id&gt;</li>
+            <li>add tasting note for whisky &lt;id&gt; in tasting &lt;name&gt; nose 21p "very good" palate 11p great 90p</li>
+        </ul>
     </div>
 </body>
 </html>
