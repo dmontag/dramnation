@@ -42,24 +42,51 @@ function interpret(parsed, res) {
     switch(parsed.operation) {
         case "listAll": listAllOfKind(parsed.kind, res); break;
         case "add": add(parsed, res); break;
+        case "set": set(parsed, res); break;
+        case "unset": unset(parsed, res); break;
         case "remove": remove(parsed, res); break;
     }
 }
 
 function listAllOfKind(kind, res) {
-    queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN n, labels(n) ORDER BY n.name", {}, res);
+    switch (kind) {
+        case "whisky": queryResponse(
+            "MATCH (n:Whisky) " + 
+                "OPTIONAL MATCH (n)-[:BOTTLER]->(b:Bottler) " +
+                "RETURN {item:n, bottler:b, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
+        case "distillery": queryResponse(
+            "MATCH (d:Distillery) OPTIONAL MATCH (d)-[:REGION]->(r:Region) RETURN {item:d, region:r, kind:head(labels(d))} AS result ORDER BY d.name", 
+            {}, res); break;
+        default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
+    }
 }
 
 function add(parsed, res) {
     switch (parsed.kind) {
+        case "region": addRegion(parsed.name, res); break;
         case "distillery": addDistillery(parsed.name, res); break;
+        case "bottler": addBottler(parsed.name, res); break;
         case "whisky": addWhisky(parsed.definition, res); break;
     }
 }
 
+function addRegion(name, res) {
+    queryResponse( 
+        "MERGE (n:Region {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN {item:n, kind:head(labels(n))} AS result", 
+        {"name":name.toLowerCase(), "displayName": name},
+        res);
+}
+
 function addDistillery(name, res) {
     queryResponse( 
-        "MERGE (n:Distillery {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN n, labels(n)", 
+        "MERGE (n:Distillery {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN {item:n, kind:head(labels(n))} AS result", 
+        {"name":name.toLowerCase(), "displayName": name},
+        res);
+}
+
+function addBottler(name, res) {
+    queryResponse( 
+        "MERGE (n:Bottler {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN {item:n, kind:head(labels(n))} AS result", 
         {"name":name.toLowerCase(), "displayName": name},
         res);
 }
@@ -76,14 +103,21 @@ function addWhisky(def, res) {
     };
     for (var mod in def.modifiers) properties[mod] = def.modifiers[mod];
     for (var key in properties) if (!properties[key]) delete properties[key];
+    delete properties.bottler;
 
-    var params = {distillery: def.distillery.toLowerCase(), whisky: properties};
+    var bottler = def.modifiers.bottler ? def.modifiers.bottler.toLowerCase() : null;
+    var params = {distillery: def.distillery.toLowerCase(), whisky: properties, bottler: bottler};
+    
+    var query =
+        "MATCH (d:Distillery {name:{distillery}}) " + 
+        (bottler ? "MATCH (b:Bottler {name:{bottler}}) " : "" ) + 
+        "CREATE (n:Whisky {whisky}) " +
+        "MERGE (n)-[:DISTILLERY]->(d) " +
+        (bottler ? "MERGE (n)-[:BOTTLER]->(b) " : "" ) + 
+        (bottler ? "RETURN {item:n, bottler: b, kind:head(labels(n))} AS result" : "RETURN {item:n, kind:head(labels(n))} AS result" );
     
     queryResponse(
-        "MATCH (d:Distillery {name:{distillery}}) " + 
-            "CREATE (n:Whisky {whisky}) " +
-            "MERGE (n)-[:DISTILLERY]->(d) " +
-            "RETURN n, labels(n)",
+        query,
         params,
         res);
 }
@@ -93,6 +127,53 @@ function getWhiskyName(def) {
         (def.modifiers.caskingBottling ? " " + def.modifiers.caskingBottling[0] + "/" + def.modifiers.caskingBottling[1] : "") + 
         (def.modifiers.year ? " " + def.modifiers.year : "") + 
         (def.modifiers.age ? " " + def.modifiers.age + "yo" : "");
+}
+
+function set(parsed, res) {
+    switch (parsed.kind) {
+        case "whisky": setWhisky(parsed, res); break;
+        case "distillery": setDistillery(parsed, res); break;
+    }
+}
+
+function setWhisky(parsed, res) {
+    var key = parsed.modifier[0];
+    if (key != "bottler") {
+        queryResponse("MATCH (n:Whisky {id:{id}}) SET n." + key + " = {value} RETURN {item:n, kind:head(labels(n))} AS result",
+            {id: parsed.id, value: parsed.modifier[1]},
+            res);
+    }
+}
+
+function setDistillery(parsed, res) {
+    console.log(parsed);
+    var name = parsed.name.toLowerCase();
+    var key = parsed.modifier[0];
+    var value = parsed.modifier[1];
+    switch (key) {
+        case "closed": queryResponse("MATCH (n:Distillery {name:{name}}) SET n.closed = true RETURN {item:n, kind:head(labels(n))} AS result",
+            {name: name}, res); break;
+        case "region": queryResponse(
+            "MATCH (n:Distillery {name:{distillery}}), (newRegion:Region {name:{region}}) " +
+                "OPTIONAL MATCH (n)-[rel:REGION]->(:Region) " +
+                "WITH n, newRegion, collect(rel) AS rels " + 
+                "FOREACH(rel IN rels | DELETE rel) " + 
+                "MERGE (n)-[:REGION]->(newRegion) " + 
+                "RETURN {item:n, region:newRegion, kind:head(labels(n))} AS result",
+            {distillery: name, region:value.toLowerCase()}, res); break;
+    }
+}
+
+function unset(parsed, res) {
+    switch (parsed.kind) {
+        case "whisky": unsetWhisky(parsed, res); break;
+    }
+}
+
+function unsetWhisky(parsed, res) {
+    queryResponse("MATCH (n:Whisky {id:{id}, " + parsed.modifier[0] + ": {value}}) REMOVE n." + parsed.modifier[0] + " RETURN {item:n, kind:head(labels(n))} AS result",
+        {id: parsed.id, value: parsed.modifier[1]},
+        res);
 }
 
 function remove(parsed, res) {
@@ -123,98 +204,12 @@ function queryResponse(query, params, res) {
         if (err) {
             console.log("Query failed: " + err);
             res.send({error:err});
-        } else {
+        }
+        else {
             res.send({result:data});
         }
     });
 }
-
-// function vlist(args) {
-//     var type = args[0];
-//     var owner = args[1];
-//     switch (type) {
-//         case "owner":
-//             return [
-//                 "MATCH (n:Whisky)-[:OWNER]->(o:Owner), (n)-[:DISTILLERY]->(d:Distillery) WHERE o.name = {owner} RETURN [d.displayName, n] AS result", 
-//                 {"owner":owner.toLowerCase()}
-//             ];
-//         case "distillery":
-//             return [
-//                 "MATCH (n:Whisky)-[:DISTILLERY]->(o:Distillery) WHERE o.name = {owner} RETURN [o.displayName, n] AS result", 
-//                 {"owner":owner.toLowerCase()}
-//             ];
-//         case "bottler":
-//             return [
-//                 "MATCH (n:Whisky)-[:BOTTLER]->(o:Bottler), (n)-[:Distillery]->(o:Distillery) WHERE o.name = {owner} RETURN [d.displayName, n] AS result", 
-//                 {"owner":owner.toLowerCase()}
-//             ];
-//     }
-// }
-
-// function vadd(args) {
-//     var type = args[0];
-//     var owner = args[1];
-//     switch (type) {
-//         case "owner":
-//         case "distillery":
-//         case "bottler":
-//             return [
-//                 "MERGE (n:" + args[0].capitalize() + " {name: {name}}) ON CREATE SET n.displayName = {displayName} RETURN count(*)", 
-//                 {"name":owner.toLowerCase(), "displayName": owner}
-//             ];
-//         case "whisky":
-//             console.log("adding whisky");
-//             var spec = args[2];
-//             console.log(spec);
-
-//             var params = {};
-//             spec.mods.forEach(function(d) {
-//                 console.log(d);
-//                 params[d[0]] = d[1];
-//             });
-//             params["owner"] = owner.toLowerCase();
-//             params["distillery"] = spec.distillery.toLowerCase();
-//             console.log(params);
-
-//             var properties = [];
-//             if (spec.name != null) {
-//                 properties.push("name:{name}");
-//                 properties.push("displayName:{displayName}");
-//                 params["name"] = spec.name.toLowerCase();
-//                 params["displayName"] = spec.name;
-//             }
-//             if (params["cask strength"]) {
-//                 properties.push("caskStrength:{caskStrength}");
-//             }
-//             if (params["single cask"]) {
-//                 properties.push("singleCask:{singleCask}");
-//             }
-//             if (params["age"]) {
-//                 properties.push("age:{age}");
-//             }
-//             if (params["year"]) {
-//                 properties.push("year:{year}");
-//             }
-//             if (params["percentage"]) {
-//                 properties.push("percentage:{percentage}");
-//             }
-//             console.log(properties);
-
-//             var query = "MATCH (d:Distillery {name:{distillery}}) MATCH (o:Owner {name:{owner}}) MERGE (w:Whisky {" + properties.join(",") + "}) MERGE (w)-[:DISTILLERY]->(d) MERGE (w)-[:OWNER]->(o) RETURN count(*)";
-//             console.log(query);
-
-//             return [query, params];
-//     }
-//     console.log("shouldn't get here");
-// }
-
-// function vupdate(args) {
-
-// }
-
-// function vremove(args) {
-
-// }
 
 String.prototype.capitalize = function() {
     return this.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
