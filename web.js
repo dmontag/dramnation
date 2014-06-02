@@ -55,7 +55,7 @@ function listAllOfKind(kind, res) {
                 "OPTIONAL MATCH (n)-[:BOTTLER]->(b:Bottler) " +
                 "RETURN {item:n, bottler:b, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
         case "distillery": queryResponse(
-            "MATCH (d:Distillery) OPTIONAL MATCH (d)-[:REGION]->(r:Region) RETURN {item:d, region:r, kind:head(labels(d))} AS result ORDER BY d.name", 
+            "MATCH (d:Distillery) OPTIONAL MATCH (d)-[:REGION]->(r:Region) RETURN {item:d, region:r, kind:head(labels(d))} AS result ORDER BY d.name, r.name", 
             {}, res); break;
         default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
     }
@@ -151,7 +151,9 @@ function setDistillery(parsed, res) {
     var key = parsed.modifier[0];
     var value = parsed.modifier[1];
     switch (key) {
-        case "closed": queryResponse("MATCH (n:Distillery {name:{name}}) SET n.closed = true RETURN {item:n, kind:head(labels(n))} AS result",
+        case "closed": queryResponse("MATCH (n:Distillery {name:{name}}) " +
+                "OPTIONAL MATCH (n)-[:REGION]->(r:Region) SET n.closed = true " +
+                "RETURN {item:n, region:r, kind:head(labels(n))} AS result",
             {name: name}, res); break;
         case "region": queryResponse(
             "MATCH (n:Distillery {name:{distillery}}), (newRegion:Region {name:{region}}) " +
@@ -180,6 +182,7 @@ function remove(parsed, res) {
     switch (parsed.kind) {
         case "whisky": removeWhisky(parsed.id, res); break;
         case "distillery": removeDistillery(parsed.name, res); break;
+        case "region": removeRegion(parsed.name, res); break;
     }
 }
 
@@ -195,6 +198,13 @@ function removeWhisky(id, res) {
 function removeDistillery(name, res) {
     queryResponse(
         "MATCH (d:Distillery {name:{name}}) WHERE NOT((d)--()) DELETE d", 
+        {name: name.toLowerCase()},
+        res);
+}
+
+function removeRegion(name, res) {
+    queryResponse(
+        "MATCH (r:Region {name:{name}}) WHERE NOT((r)--()) DELETE r", 
         {name: name.toLowerCase()},
         res);
 }
