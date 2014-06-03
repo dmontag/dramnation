@@ -32,7 +32,7 @@ body {
 }
 
 .examples {
-    font-size: 10;
+    font-size: 9;
 }
 
 #query {
@@ -43,6 +43,11 @@ body {
     /*height: 70%;*/
     /*width: 100%;*/
     /*overflow: auto;*/
+}
+
+.resultCount {
+    padding-bottom: 1em;
+    text-align: right;
 }
 
 .DistilleryName {
@@ -69,11 +74,15 @@ body {
     color: lightyellow;
 }
 
+.UserName {
+    color: black;
+}
+
 .id {
     color:#bbb;
 }
 
-.DivWithScroll{
+.divToScroll{
     height:300px;
     overflow:auto;
     overflow-x:hidden;
@@ -83,6 +92,10 @@ body {
     <script src="jquery-2.1.1.js"></script>
     <script>
         $(document).ready(function() {
+            String.prototype.capitalize = function() {
+                return this.charAt(0).toUpperCase() + this.slice(1);
+            }
+
             $("#query").keypress(function (e) {
                 if (e.which == '13') {
                     $("#result").html("");
@@ -99,10 +112,11 @@ body {
                 html = JSON.stringify(result.error);
             } else if (result.result) {
                 var data = result.result.map(function(d) { 
-                    // var r = d["result"]; r["item"] = r["item"]["_data"]["data"]; return r; 
                     return d["result"];
                 });
-                html = data.map(renderEntry).join("<br/>");
+                var renderedEntries = data.map(renderEntry);
+                $(".resultCount").html("Showing " + renderedEntries.length + " result" + (renderedEntries.length != 1 ? "s" : ""));
+                html = renderedEntries.join("<br/>");
             }
             $("#result").html(html);
         }
@@ -137,11 +151,19 @@ body {
             var data = unwrap(entry.item);
             var result = "<span class='id'>" + data.id + "</span> <strong><span class='WhiskyName'>" + data.displayName + "</span></strong> ";
             if (data.percentage) result += " " + data.percentage + "%";
-            if (data.singleCask) result += " Single Cask";
+            if (data.singleCask) result += " Single cask";
             if (data.peated) result += " Peated";
+            if (data.caskStrength) result += " Cask strength";
+            if (data.bottleSize) result += " " + data.bottleSize + "cl";
+            if (data.finish) result += " " + renderCamelCase(data.finish) + " finish";
+            if (data.caskType) result += " " + renderCamelCase(data.caskType) + " cask";
             if (data.originalBottling) result += " OB";
             if (entry.bottler) result += " <span class='BottlerName'>" + unwrap(entry.bottler).displayName + "</span>";
             return result;
+        }
+
+        function renderCamelCase(camel) {
+            return camel.replace(/([A-Z])/g, " $1").toLowerCase().capitalize();
         }
 
         function renderDistillery(entry) {
@@ -158,7 +180,7 @@ body {
             if (data.date) result += " on " + data.date;
             if (entry.includedWhisky && entry.includedWhisky.length > 0 && entry.includedWhisky[0].item) {
                 entry.includedWhisky.forEach(function(w) {
-                    result += "<br/>&nbsp;&nbsp;" + renderWhisky(w);
+                    result += "<br/>&nbsp;&nbsp;" + (w.order ? " #" + w.order : "") + " " + renderWhisky(w);
                 });
             }
             result += "<br/>";
@@ -187,6 +209,7 @@ body {
 
         function renderNoteLine(entry) {
             var data = unwrap(entry.item);
+            var username = (entry.user ? unwrap(entry.user).displayName : null);
             var result = "<span class='id'>" + data.id + "</span>";
             if (data.points) result += " <strong>" + data.points + "p</strong>";
             if (data.nose) result += " Nose: " + data.nose;
@@ -197,6 +220,7 @@ body {
             if (data.finishPoints) result += " (" + data.finishPoints + "p)";
             if (data.overall) result += " Overall: " + data.overall;
             if (data.overallPoints) result += " (" + data.overallPoints + "p)";
+            if (username) result += " by <span class='UserName'>" + username + "</span>";
             return result;
         }
 
@@ -217,17 +241,37 @@ body {
         </p>
     </div>
     <div class="console">
-        <div id="result" class="DivWithScroll DivToScroll"></div>
+        <div class="resultCount"></div>
+        <div id="result" class="divToScroll"></div>
         <input id="query" type="text"/>
         <ul class="examples">
-            <li>list (whisky|distilleries|bottlers|regions|tastings|tasting notes)</li>
-            <li>(add|remove) (distillery|bottler|region) &lt;name&gt;</li>
-            <li>add whisky &lt;definition&gt;</li>
-            <li>remove whisky &lt;id&gt;</li>
-            <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
-            <li>add tasting &lt;name&gt; on 2014-05-26</li>
-            <li>set tasting &lt;name&gt; includes whisky &lt;id&gt;</li>
-            <li>add tasting note for whisky &lt;id&gt; in tasting &lt;name&gt; nose 21p "very good" palate 11p great 90p</li>
+            <li>basics
+                <ul>
+                    <li>list (whisky|distilleries|bottlers|regions|tastings|tasting notes)</li>
+                    <li>(add|remove) (distillery|bottler|region|whisky|tasting) &lt;name|id&gt;</li>
+                    <li>add whisky &lt;definition...&gt;</li>
+                </ul>
+            </li>
+            <li>modifications
+                <ul>
+                    <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
+                </ul>
+            </li>
+            <li>tastings
+                <ul>
+                    <li>add tasting &lt;name&gt; on 2014-05-26</li>
+                    <li>(set|unset) tasting "&lt;name&gt;" includes whisky &lt;id&gt;</li>
+                    <li>set tasting &lt;name&gt; order whisky &lt;id&gt; &lt;order&gt;</li>
+                </ul>
+            </li>
+            <li>tasting notes
+                <ul>
+                    <li>add tasting note for whisky &lt;id&gt; in tasting "&lt;name&gt;" &lt;notes...&gt; &lt;totalPoints&gt;
+                        <ul><li>note: &lt;nose|palate|finish|overall&gt; [&lt;points&gt;] "&lt;comment&gt;"</li></ul>
+                    </li>
+                    <li>set tasting note &lt;id&gt; user &lt;username&gt;</li>
+                </ul>
+            </li>
         </ul>
     </div>
 </body>

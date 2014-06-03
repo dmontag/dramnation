@@ -69,12 +69,14 @@ function listAllOfKind(kind, res) {
             "MATCH (t:Tasting) " + 
                 "OPTIONAL MATCH (t)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky) " +
                 "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-                "RETURN {item:t, includedWhisky:collect({item:w, bottler:b, kind:head(labels(w))}), kind:head(labels(t))} AS result ORDER BY t.date",
+                "WITH t, tw, w, b ORDER BY t.date DESC, tw.order " +
+                "RETURN {item:t, includedWhisky:collect({item:w, order:tw.order, bottler:b, kind:head(labels(w))}), kind:head(labels(t))} AS result",
             {}, res); break;
         case "tastingNote": queryResponse(
             "MATCH (tn:TastingNote)-[:NOTE_FOR]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky), (t:Tasting)-[:INCLUDES]->(tw) " + 
                 "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-                "WITH w, b, collect({item:tn, kind:head(labels(tn))}) AS notes, t " +
+                "OPTIONAL MATCH (tn)-[:NOTE_BY]->(u:User) " +
+                "WITH w, b, collect({item:tn, user:u, kind:head(labels(tn))}) AS notes, t " +
                 "RETURN {item:w, bottler:b, tastings:collect({item:t, notes:notes, kind:head(labels(t))}), kind:'TastingNoteSplat'} AS result",
             {}, res); break;
         default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
@@ -203,6 +205,7 @@ function set(parsed, res) {
         case "whisky": setWhisky(parsed, res); break;
         case "distillery": setDistillery(parsed, res); break;
         case "tasting": setTasting(parsed, res); break;
+        case "tastingNote": setTastingNote(parsed, res); break;
     }
 }
 
@@ -239,15 +242,35 @@ function setTasting(parsed, res) {
     var name = parsed.name.toLowerCase();
     var date = parsed.date;
     var whisky = parsed.whisky;
+    var order = parsed.order;
 
-    if (date) {
+    if (order && whisky) {
+        queryResponse("MATCH (n:Tasting {name:{name}})-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky {id:{whisky}}) " +
+                "SET tw.order = {order} " + 
+                "RETURN {item:n, order:tw.order, kind:head(labels(n))} AS result",
+            {name:name, whisky:whisky, order:order}, res);
+    } else if (date) {
         queryResponse("MATCH (n:Tasting {name:{name}}) SET n.date = {date} RETURN {item:n, kind:head(labels(n))} AS result",
             {name:name, date:date}, res);
     } else if (whisky) {
         queryResponse("MATCH (n:Tasting {name:{name}}), (w:Whisky {id:{whisky}}) " +
-                "MERGE (n)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w) RETURN {item:n, kind:head(labels(n))} AS result",
+                "MERGE (n)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w) " +
+                "RETURN {item:n, kind:head(labels(n))} AS result",
             {name:name, whisky:whisky}, res);
     }
+}
+
+function setTastingNote(parsed, res) {
+    var id = parsed.id;
+    var user = parsed.user.toLowerCase();
+    queryResponse("MATCH (tn:TastingNote {id:{id}}), (u:User {name:{user}}) " +
+        "OPTIONAL MATCH (tn)-[r:NOTE_BY]->(:User) " +
+        "WITH tn, u, collect(r) as rels " +
+        "FOREACH (rel IN rels | DELETE rel) " +
+        "MERGE (tn)-[:NOTE_BY]->(u) " +
+        "RETURN {item:tn, user:u, kind:head(labels(tn))} AS result",
+        {id:id, user:user},
+        res);
 }
 
 //////////// UNSET /////////////

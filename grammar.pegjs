@@ -24,11 +24,13 @@ start
 
   / listTastingNotes
   / addTastingNote
+  / setTastingNote
   / removeTastingNote
   / listTastings
   / addTasting
-  / addWhiskyToTasting
   / setTastingDate
+  / addWhiskyToTasting
+  / setWhiskyOrderInTasting
   / removeWhiskyFromTasting
   / removeTasting
 
@@ -59,7 +61,7 @@ distilleryModifier
 distilleryClosed
   = "closed"i { return ["closed", true]; }
 distilleryRegion
-  = "region"i WS region:nameWithSpaces { return ["region", region]; }
+  = "region"i WS region:stringWithSpaces { return ["region", region]; }
 
 listAllBottlers
   = "list"i WS "bottlers"i { return {operation:"listAll", kind:"bottler"}; }
@@ -89,6 +91,8 @@ addTasting
   = "add"i WS "tasting"i WS name:qString WS "on"i WS date:date { return {operation:"add", kind:"tasting", name:name, date:date}; }
 addWhiskyToTasting
   = "set"i WS "tasting"i WS name:qString WS "includes"i WS whisky WS id:id { return {operation:"set", kind:"tasting", name:name, whisky:id}; }
+setWhiskyOrderInTasting
+  = "set"i WS "tasting"i WS name:qString WS "order"i WS whisky WS id:id WS order:number { return {operation:"set", kind:"tasting", name:name, whisky:id, order:order}; }
 setTastingDate
   = "set"i WS "tasting"i WS name:qString WS "on"i WS date:date { return {operation:"set", kind:"tasting", name:name, date:date}; }
 removeWhiskyFromTasting
@@ -111,6 +115,8 @@ addTastingNote
 
       return {operation:"add", kind:"tastingNote", whisky:id, tasting:name, modifiers:modsObject}; 
     }
+setTastingNote
+  = "set"i WS "tasting"i WS "note"i WS id:id WS "user"i WS username:username { return {operation:"set", kind:"tastingNote", id:id, user:username}; }
 removeTastingNote
   = "remove"i WS "tasting"i WS "note"i WS id:id { return {operation:"remove", kind:"tastingNote", id:id}; }
 tastingNoteModifier
@@ -138,7 +144,7 @@ tastingPointsNumber
 // Aberlour "Abunadh" 60,7% OB
 
 whiskyDefinition
-  = distillery:stringWithSpaces specialName:(WS qString)? age:(WS ageModifier)* mods:(WS whiskyModifier)*
+  = distillery:stringWithSpaces specialName:(WS qqString)? age:(WS ageModifier)* mods:(WS whiskyModifier)*
   { 
     var modsObject = {};
     var modsArray = age.concat(mods).map(function(d) { return d[1]; });
@@ -173,23 +179,64 @@ whiskyBottler
   = "bottled by"i WS s:qString { return ["bottler", s]; }
 singleCask
   = "single cask"i { return ["singleCask", true]; }
+caskStrength
+  = "cask strength"i { return ["caskStrength", true]; }
 whiskyPeated
   = "peated"i { return ["peated", true]; }
 whiskyOriginalBottling
   = "ob"i { return ["originalBottling", true]; }
+bottleSize
+  = size:number WS "cl"i { return ["bottleSize", size]; }
+
+caskFinish
+  = finish:finishWoodType WS "finish"i { return ["finish", finish]; }
+finishWoodType
+  = sherryFinish
+  / portFinish
+  / madeiraFinish
+  / redWineFinish
+sherryFinish
+  = sherryWood
+portFinish
+  = "port"i { return "port"; }
+madeiraFinish
+  = "madeira"i { return "madeira"; }
+redWineFinish
+  = "red"i WS "wine"i { return "redWine"; }
+
+caskType
+  = type:caskWoodType WS "cask"i { return ["caskType", type]; }
+caskWoodType
+  = oakWood
+  / bourbonRefillWood
+  / sherryRefillWood
+  / sherryWood
+  / bourbonWood
+oakWood
+  = "oak"i { return "oak"; }
+sherryWood
+  = "sherry"i { return "sherry"; }
+bourbonWood
+  = "bourbon"i { return "bourbon"; }
+bourbonRefillWood
+  = "bourbon"i WS "refill"i { return "bourbonRefill"; }
+sherryRefillWood
+  = "sherry"i WS "refill"i {return "sherryRefill"; }
 
 whiskyModifier
   = singleCask
+  / caskStrength
+  / caskType
+  / caskFinish
   / whiskyPercentage
   / whiskyBottler
   / whiskyPeated
   / whiskyOriginalBottling
+  / bottleSize
 
 
 WS
   = [ \n\r\t]* { return null; }
-nameWithSpaces
-  = s:[a-öA-Ö ]+ { return s.join(""); }
 year
   = n:(("19" / "20") [0-9][0-9]) { return parseInt(n.join(""), 10); }
 month
@@ -198,17 +245,30 @@ day
   = month
 qString
   = string
-  / '"' s:stringWithSpaces '"' { return s; }
+  / qqString
+qqString
+  = '"' s1:alphaChar s2:textChar* '"' { return s1+s2.join(""); }
 stringWithSpaces
   = first:string rest:( WS string )* { var words = rest.map(function(d){return d.join("");}); words.unshift(first); return words.join(" "); }
 string
-  = s:[a-öA-Ö]+ { return s.join(""); }
+  = s1:alphaChar s2:alphanumChar* { return s1 + s2.join(""); }
+alphanum
+  = s:alphanumChar* { return s.join(""); }
 number
   = n:[0-9]+ { return parseInt(n.join(""), 10); }
 float
   = n:[0-9.,]+ { return parseFloat(n.join("").replace(",","."), 10); }
 id
   = id:[a-zA-Z0-9-_]+ { return id.join(""); }
+username 
+  = string
 date
   = s:([12][90][0-9][0-9] "-" [01][0-9] "-" [0123][0-9]) { return s.join(""); }
+
+textChar
+  = [a-öA-Ö0-9 ,.\-':&%]
+alphaChar
+  = [a-öA-Ö]
+alphanumChar
+  = [a-öA-Ö0-9]
 
