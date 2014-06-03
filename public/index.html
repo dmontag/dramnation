@@ -7,14 +7,15 @@ body {
     -moz-background-size: cover;
     -o-background-size: cover;
     background-size: cover;
+
+    color: white;
+    font-family: "Lucida Console", Monaco, monospace;
 }
 
 .heading {
     position: absolute;
     left: 30px;
-    top: 80%;
-    color: white;
-    font-family: "Lucida Console", Monaco, monospace;
+    bottom: 0%;
 }
 
 .heading h1 {
@@ -23,27 +24,24 @@ body {
 
 .console {
     position: absolute;
-    left: 40%;
-    bottom: 0%;
-    color: white;
-    font-family: "Lucida Console", Monaco, monospace;
+    left: 3%;
+    bottom: 12em;
     font-size: 12;
-    width:55%;
+    width:94%;
 }
 
-.examples {
+.help {
     font-size: 9;
+    position: absolute;
+    left: 40%;
+    bottom: 0%;
+    width:55%;
 }
 
 #query {
     width: 100%;
 }
 
-#result {
-    /*height: 70%;*/
-    /*width: 100%;*/
-    /*overflow: auto;*/
-}
 
 .resultCount {
     padding-bottom: 1em;
@@ -82,8 +80,12 @@ body {
     color:#bbb;
 }
 
-.divToScroll{
-    height:300px;
+.result {
+    height:350;
+    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top-left-radius:5px;
+    border-top-right-radius:5px;
     overflow:auto;
     overflow-x:hidden;
 }
@@ -242,9 +244,11 @@ body {
     </div>
     <div class="console">
         <div class="resultCount"></div>
-        <div id="result" class="divToScroll"></div>
+        <div id="result" class="result"></div>
         <input id="query" type="text"/>
-        <ul class="examples">
+    </div>
+    <div class="help">
+        <ul>
             <li>basics
                 <ul>
                     <li>list (whisky|distilleries|bottlers|regions|tastings|tasting notes)</li>
