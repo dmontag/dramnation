@@ -25,7 +25,7 @@ body {
 .console {
     position: absolute;
     left: 3%;
-    bottom: 12em;
+    bottom: 15em;
     font-size: 12;
     width:94%;
 }
@@ -70,6 +70,10 @@ body {
 
 .TastingNoteName {
     color: lightyellow;
+}
+
+.OWNSName {
+    color: yellowgreen;
 }
 
 .UserName {
@@ -136,6 +140,10 @@ body {
                 result += renderTastingNoteSplat(entry);
             } else if (entry.kind == "TastingNote") {
                 result += renderTastingNote(entry);
+            } else if (entry.kind == "OWNS") {
+                result += renderOWNS(entry);
+            } else if (entry.kind == "User") {
+                result += renderUser(entry);
             } else {
                 var data = unwrap(entry.item);
                 result = "<strong><span class='" + entry.kind + "Name'>" + data.displayName + "</span></strong> ";
@@ -180,7 +188,7 @@ body {
             var data = unwrap(entry.item);
             var result = "<strong><span class='TastingName'>" + data.displayName + "</span></strong> ";
             if (data.date) result += " on " + data.date;
-            if (entry.includedWhisky && entry.includedWhisky.length > 0 && entry.includedWhisky[0].item) {
+            if (nonEmptyCollect(entry.includedWhisky)) {
                 entry.includedWhisky.forEach(function(w) {
                     result += "<br/>&nbsp;&nbsp;" + (w.order ? " #" + w.order : "") + " " + renderWhisky(w);
                 });
@@ -192,13 +200,13 @@ body {
         function renderTastingNoteSplat(entry) {
             console.log(entry);
             var result = renderWhisky(entry);
-            if (entry.tastings && entry.tastings.length > 0 && entry.tastings[0].item) {
+            if (nonEmptyCollect(entry.tastings)) {
                 entry.tastings.forEach(function(t) {
                     var tastingData = unwrap(t.item);
                     result += "<br/>&nbsp;&nbsp;<strong><span class='TastingName'>" + tastingData.displayName + "</span></strong> ";
                     if (tastingData.date) result += " on " + tastingData.date;
 
-                    if (t.notes && t.notes.length > 0 && t.notes[0].item) {
+                    if (nonEmptyCollect(t.notes)) {
                         t.notes.forEach(function(n) {
                             result += "<br/>&nbsp;&nbsp;&nbsp;&nbsp;" + renderNoteLine(n);
                         });
@@ -230,8 +238,26 @@ body {
             return renderNoteLine(entry);
         }
 
+        function renderOWNS(entry) {
+            return "Bottle <span class='OWNSName'>" + unwrap(entry.item).bottle + "</span> of whisky " + 
+                (entry.whisky ? " " + renderWhisky(entry.whisky) : "");
+        }
+
+        function renderUser(entry) {
+            var result = "";
+            result += "<strong><span class='UserName'>" + unwrap(entry.item).displayName + "</span></strong>";
+            if (nonEmptyCollect(entry.bottles)) entry.bottles.forEach(function(bottle) {
+                result += "<br/>&nbsp;&nbsp;" + renderOWNS(bottle);
+            });
+            result += "<br/>";
+            return result;
+        }
+
         function unwrap(map) {
             return map["_data"]["data"];
+        }
+        function nonEmptyCollect(l) {
+            return l && l.length > 0 && l[0].item;
         }
     </script>
 </head>
@@ -251,7 +277,7 @@ body {
         <ul>
             <li>basics
                 <ul>
-                    <li>list (whisky|distilleries|bottlers|regions|tastings|tasting notes)</li>
+                    <li>list (whisky|distilleries|bottlers|regions|users|tastings|tasting notes)</li>
                     <li>(add|remove) (distillery|bottler|region|whisky|tasting) &lt;name|id&gt;</li>
                     <li>add whisky &lt;definition...&gt;</li>
                 </ul>
@@ -259,6 +285,8 @@ body {
             <li>modifications
                 <ul>
                     <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
+                    <li>set user &lt;username&gt; owns whisky &lt;id&gt;</li>
+                    <li>unset user &lt;username&gt; owns bottle &lt;id&gt;</li>
                 </ul>
             </li>
             <li>tastings

@@ -79,9 +79,17 @@ function listAllOfKind(kind, res) {
                 "WITH w, b, collect({item:tn, user:u, kind:head(labels(tn))}) AS notes, t " +
                 "RETURN {item:w, bottler:b, tastings:collect({item:t, notes:notes, kind:head(labels(t))}), kind:'TastingNoteSplat'} AS result",
             {}, res); break;
+        case "user":  queryResponse(
+            "MATCH (u:User) " +
+            "OPTIONAL MATCH (u)-[o:OWNS]->(w:Whisky) " +
+            "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
+            "RETURN {item:u, bottles:collect({item:o, whisky:{item:w, bottler:b, kind:head(labels(w))}, kind:'OWNS'}), kind:head(labels(u))} AS result",
+            {}, res); break;
         default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
     }
 }
+
+/////////// ADD ////////////
 
 function add(parsed, res) {
     switch (parsed.kind) {
@@ -206,6 +214,7 @@ function set(parsed, res) {
         case "distillery": setDistillery(parsed, res); break;
         case "tasting": setTasting(parsed, res); break;
         case "tastingNote": setTastingNote(parsed, res); break;
+        case "user": setUser(parsed, res); break;
     }
 }
 
@@ -273,12 +282,24 @@ function setTastingNote(parsed, res) {
         res);
 }
 
+function setUser(parsed, res) {
+    var params = {
+        user: parsed.user.toLowerCase(),
+        whisky: parsed.whisky,
+        bottle: shortid.generate()
+    };
+    queryResponse("MATCH (u:User {name:{user}}), (w:Whisky {id:{whisky}}) CREATE (u)-[o:OWNS {bottle:{bottle}}]->(w) " + 
+        "RETURN {item:o, kind:type(o)} AS result",
+        params, res);
+}
+
 //////////// UNSET /////////////
 
 function unset(parsed, res) {
     switch (parsed.kind) {
         case "whisky": unsetWhisky(parsed, res); break;
         case "tasting": unsetTasting(parsed, res); break;
+        case "user": unsetUser(parsed, res); break;
     }
 }
 
@@ -299,6 +320,15 @@ function unsetTasting(parsed, res) {
             "WHERE NOT((tw)<-[:NOTE_FOR]-()) " +
             "DELETE r1, r2, tw",
         {name:name, whisky:whisky}, res);
+}
+
+function unsetUser(parsed, res) {
+    var params = {
+        user: parsed.user.toLowerCase(),
+        bottle: parsed.bottle
+    };
+    queryResponse("MATCH (u:User {name:{user}})-[o:OWNS {bottle:{bottle}}]->() DELETE o", 
+        params, res);
 }
 
 /////////// REMOVE ////////////

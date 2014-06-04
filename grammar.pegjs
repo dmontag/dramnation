@@ -22,6 +22,10 @@ start
   / unsetWhisky
   / removeWhisky
 
+  / listAllUsers
+  / setUser
+  / unsetBottle
+
   / listTastingNotes
   / addTastingNote
   / setTastingNote
@@ -138,6 +142,13 @@ tastingPoints
 tastingPointsNumber
   = points:number "p"i { return points; }
 
+
+listAllUsers
+  = "list"i WS "users" { return {operation:"listAll", kind:"user"}; }
+setUser
+  = "set"i WS "user"i WS user:username WS "owns"i WS whisky WS id:id { return {operation:"set", kind:"user", user:user, whisky:id}; }
+unsetBottle
+  = "unset"i WS "user"i WS user:username WS "owns"i WS "bottle"i WS id:id { return {operation:"unset", kind:"user", user:user, bottle:id}; }
 
 
 // Nikka Yoichi 1988/2013 62% OB Single Cask Peated
