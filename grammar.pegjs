@@ -23,6 +23,7 @@ start
   / removeWhisky
 
   / listAllUsers
+  / listAllBottles
   / setUser
   / unsetBottle
 
@@ -145,6 +146,8 @@ tastingPointsNumber
 
 listAllUsers
   = "list"i WS "users" { return {operation:"listAll", kind:"user"}; }
+listAllBottles
+  = "list"i WS "bottles" { return {operation:"listAll", kind:"bottle"}; }
 setUser
   = "set"i WS "user"i WS user:username WS "owns"i WS whisky WS id:id { return {operation:"set", kind:"user", user:user, whisky:id}; }
 unsetBottle
@@ -155,7 +158,7 @@ unsetBottle
 // Aberlour "Abunadh" 60,7% OB
 
 whiskyDefinition
-  = distillery:stringWithSpaces specialName:(WS qqString)? age:(WS ageModifier)* mods:(WS whiskyModifier)*
+  = distillery:stringWithSpaces specialName:(WS qqString)? age:(WS ageModifier)* (WS "," WS)? mods:(WS whiskyModifier)*
   { 
     var modsObject = {};
     var modsArray = age.concat(mods).map(function(d) { return d[1]; });
@@ -174,12 +177,9 @@ whiskyDefinition
 ageModifier
   = whiskyCaskingBottling
   / whiskyAge
-  / whiskyYear
 
 whiskyAge
   = age:number "yo"i { return ["age", age]; }
-whiskyYear
-  = year:year { return ["year", year]; }
 whiskyCaskingBottling
   = casking:year "/" bottling:year { return ["caskingBottling", [casking, bottling]]; }
 
@@ -187,7 +187,7 @@ whiskyCaskingBottling
 whiskyPercentage
   = p:float "%" { return ["percentage", p]; }
 whiskyBottler
-  = "bottled by"i WS s:qString { return ["bottler", s]; }
+  = "bottled"i WS "by"i WS s:qString { return ["bottler", s]; }
 singleCask
   = "single cask"i { return ["singleCask", true]; }
 caskStrength
@@ -198,6 +198,12 @@ whiskyOriginalBottling
   = "ob"i { return ["originalBottling", true]; }
 bottleSize
   = size:number WS "cl"i { return ["bottleSize", size]; }
+blended
+  = "blended"i { return ["blended", true]; }
+bottledYear
+  = "bottled"i WS year:year { return ["bottledYear", year]; }
+caskNumbers
+  = "cask"i WS cask:number total:(WS ("/" / "of"i) WS number)? { return ["caskNumbers", [cask, (total ? total[3] : 0)]]; }
 
 caskFinish
   = finish:finishWoodType WS "finish"i { return ["finish", finish]; }
@@ -244,6 +250,9 @@ whiskyModifier
   / whiskyPeated
   / whiskyOriginalBottling
   / bottleSize
+  / blended
+  / bottledYear
+  / caskNumbers
 
 
 WS

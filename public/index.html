@@ -77,7 +77,7 @@ body {
 }
 
 .UserName {
-    color: black;
+    color: coral;
 }
 
 .id {
@@ -142,6 +142,8 @@ body {
                 result += renderTastingNote(entry);
             } else if (entry.kind == "OWNS") {
                 result += renderOWNS(entry);
+            } else if (entry.kind == "OWNSByUser") {
+                result += renderOWNSByUser(entry);
             } else if (entry.kind == "User") {
                 result += renderUser(entry);
             } else {
@@ -161,13 +163,16 @@ body {
             var data = unwrap(entry.item);
             var result = "<span class='id'>" + data.id + "</span> <strong><span class='WhiskyName'>" + data.displayName + "</span></strong> ";
             if (data.percentage) result += " " + data.percentage + "%";
-            if (data.singleCask) result += " Single cask";
-            if (data.peated) result += " Peated";
+            if (data.caskNumbers) result += " Cask " + data.caskNumbers[0] + (data.caskNumbers[1] ? "/" + data.caskNumbers[1] : "");
             if (data.caskStrength) result += " Cask strength";
+            if (data.singleCask) result += " Single cask";
             if (data.bottleSize) result += " " + data.bottleSize + "cl";
+            if (data.blended) result += " Blended";
             if (data.finish) result += " " + renderCamelCase(data.finish) + " finish";
             if (data.caskType) result += " " + renderCamelCase(data.caskType) + " cask";
+            if (data.peated) result += " Peated";
             if (data.originalBottling) result += " OB";
+            if (data.bottledYear) result += " Bottled " + data.bottledYear;
             if (entry.bottler) result += " <span class='BottlerName'>" + unwrap(entry.bottler).displayName + "</span>";
             return result;
         }
@@ -239,11 +244,11 @@ body {
         }
 
         function renderOWNS(entry) {
-            return "Bottle <span class='OWNSName'>" + unwrap(entry.item).bottle + "</span> of whisky " + 
+            return "Bottle <span class='OWNSName'>" + unwrap(entry.item).bottle + "</span> of " + 
                 (entry.whisky ? " " + renderWhisky(entry.whisky) : "");
         }
 
-        function renderUser(entry) {
+        function renderOWNSByUser(entry) {
             var result = "";
             result += "<strong><span class='UserName'>" + unwrap(entry.item).displayName + "</span></strong>";
             if (nonEmptyCollect(entry.bottles)) entry.bottles.forEach(function(bottle) {
@@ -251,6 +256,10 @@ body {
             });
             result += "<br/>";
             return result;
+        }
+
+        function renderUser(entry) {
+            return "<strong><span class='UserName'>" + unwrap(entry.item).displayName + "</span></strong>";
         }
 
         function unwrap(map) {
@@ -277,7 +286,7 @@ body {
         <ul>
             <li>basics
                 <ul>
-                    <li>list (whisky|distilleries|bottlers|regions|users|tastings|tasting notes)</li>
+                    <li>list (whisky|distilleries|bottlers|regions|users|bottles|tastings|tasting notes)</li>
                     <li>(add|remove) (distillery|bottler|region|whisky|tasting) &lt;name|id&gt;</li>
                     <li>add whisky &lt;definition...&gt;</li>
                 </ul>

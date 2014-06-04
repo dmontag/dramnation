@@ -76,14 +76,18 @@ function listAllOfKind(kind, res) {
             "MATCH (tn:TastingNote)-[:NOTE_FOR]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky), (t:Tasting)-[:INCLUDES]->(tw) " + 
                 "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
                 "OPTIONAL MATCH (tn)-[:NOTE_BY]->(u:User) " +
-                "WITH w, b, collect({item:tn, user:u, kind:head(labels(tn))}) AS notes, t " +
+                "WITH w, b, collect({item:tn, user:u, kind:head(labels(tn))}) AS notes, t ORDER BY w.name " +
                 "RETURN {item:w, bottler:b, tastings:collect({item:t, notes:notes, kind:head(labels(t))}), kind:'TastingNoteSplat'} AS result",
             {}, res); break;
-        case "user":  queryResponse(
+        case "user": queryResponse(
             "MATCH (u:User) " +
-            "OPTIONAL MATCH (u)-[o:OWNS]->(w:Whisky) " +
+            "RETURN {item:u, kind:head(labels(u))} AS result",
+            {}, res); break;
+        case "bottle":  queryResponse(
+            "MATCH (u:User)-[o:OWNS]->(w:Whisky) " +
             "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-            "RETURN {item:u, bottles:collect({item:o, whisky:{item:w, bottler:b, kind:head(labels(w))}, kind:'OWNS'}), kind:head(labels(u))} AS result",
+            "WITH u, o, w, b ORDER BY u.name, w.name " +
+            "RETURN {item:u, bottles:collect({item:o, whisky:{item:w, bottler:b, kind:head(labels(w))}}), kind:'OWNSByUser'} AS result",
             {}, res); break;
         default: queryResponse("MATCH (n:" + kind.capitalize() + ") RETURN {item:n, kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
     }
@@ -202,7 +206,6 @@ function addTastingNote(tasting, whisky, modifiers, res) {
 function getWhiskyName(def) {
     return def.distillery + (def.specialName ? (" " + def.specialName) : "") +
         (def.modifiers.caskingBottling ? " " + def.modifiers.caskingBottling[0] + "/" + def.modifiers.caskingBottling[1] : "") + 
-        (def.modifiers.year ? " " + def.modifiers.year : "") + 
         (def.modifiers.age ? " " + def.modifiers.age + "yo" : "");
 }
 
@@ -220,9 +223,19 @@ function set(parsed, res) {
 
 function setWhisky(parsed, res) {
     var key = parsed.modifier[0];
-    if (key != "bottler") {
+    var value = parsed.modifier[1];
+    if (key == "bottler") {
+        queryResponse("MATCH (n:Whisky {id:{id}}), (newBottler:Bottler {name:{bottler}}) " +
+            "OPTIONAL MATCH (n)-[rel:BOTTLER]->(:Bottler) " +
+            "WITH n, newBottler, collect(rel) AS rels " + 
+            "FOREACH(rel IN rels | DELETE rel) " + 
+            "MERGE (n)-[:BOTTLER]->(newBottler) " + 
+            "RETURN {item:n, bottler:newBottler, kind:head(labels(n))} AS result",
+            {id: parsed.id, bottler: value.toLowerCase()}, 
+            res);
+    } else {
         queryResponse("MATCH (n:Whisky {id:{id}}) SET n." + key + " = {value} RETURN {item:n, kind:head(labels(n))} AS result",
-            {id: parsed.id, value: parsed.modifier[1]},
+            {id: parsed.id, value: value},
             res);
     }
 }
