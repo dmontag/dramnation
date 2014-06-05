@@ -161,7 +161,8 @@ body {
 
         function renderWhisky(entry) {
             var data = unwrap(entry.item);
-            var result = "<span class='OWNSName'>" + ("  " + (entry.numBottles || "")).slice(-2).replace(/ /g, "&nbsp;") + "</span> ";
+            var result = "<span class='OWNSName'>" + (" " + (entry.numBottles || "")).slice(-1).replace(/ /g, "&nbsp;") + "</span> ";
+            result += "<span class='UserName'>" + (" " + (entry.numOwners || "")).slice(-1).replace(/ /g, "&nbsp;") + "</span> ";
             result += "<span class='id'>" + data.id + "</span> <strong><span class='WhiskyName'>" + data.displayName + "</span></strong> ";
             if (data.percentage) result += " " + data.percentage + "%";
             if (data.caskNumbers) result += " Cask " + data.caskNumbers[0] + (data.caskNumbers[1] ? "/" + data.caskNumbers[1] : "");

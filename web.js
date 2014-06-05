@@ -62,8 +62,8 @@ function listAllOfKind(kind, res) {
         case "whisky": queryResponse(
             "MATCH (n:Whisky) " + 
                 "OPTIONAL MATCH (n)-[:BOTTLER]->(b:Bottler) " +
-                "OPTIONAL MATCH (n)<-[o:OWNS]-(:User) " +
-                "RETURN {item:n, bottler:b, numBottles:count(distinct o), kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
+                "OPTIONAL MATCH (n)<-[o:OWNS]-(u:User) " +
+                "RETURN {item:n, bottler:b, numBottles:count(o), numOwners:count(distinct u), kind:head(labels(n))} AS result ORDER BY n.name", {}, res); break;
         case "distillery": queryResponse(
             "MATCH (d:Distillery) OPTIONAL MATCH (d)-[:REGION]->(r:Region) RETURN {item:d, region:r, kind:head(labels(d))} AS result ORDER BY d.name, r.name", 
             {}, res); break;
@@ -71,9 +71,9 @@ function listAllOfKind(kind, res) {
             "MATCH (t:Tasting) " + 
                 "OPTIONAL MATCH (t)-[:INCLUDES]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky) " +
                 "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-                "OPTIONAL MATCH (w)<-[o:OWNS]-(:User) " +
-                "WITH t, tw, w, b, count(o) as numBottles ORDER BY t.date DESC, tw.order " +
-                "RETURN {item:t, includedWhisky:collect({item:w, order:tw.order, bottler:b, numBottles:numBottles, kind:head(labels(w))}), kind:head(labels(t))} AS result",
+                "OPTIONAL MATCH (w)<-[o:OWNS]-(u:User) " +
+                "WITH t, tw, w, b, count(o) as numBottles, count(distinct u) as numOwners ORDER BY t.date DESC, tw.order " +
+                "RETURN {item:t, includedWhisky:collect({item:w, order:tw.order, bottler:b, numBottles:numBottles, numOwners:numOwners, kind:head(labels(w))}), kind:head(labels(t))} AS result",
             {}, res); break;
         case "tastingNote": queryResponse(
             "MATCH (tn:TastingNote)-[:NOTE_FOR]->(tw:TastingWhisky)-[:WHISKY]->(w:Whisky), (t:Tasting)-[:INCLUDES]->(tw) " + 
@@ -81,8 +81,8 @@ function listAllOfKind(kind, res) {
                 "OPTIONAL MATCH (tn)-[:NOTE_BY]->(u:User) " +
                 "WITH w, b, t, collect({item:tn, user:u, kind:head(labels(tn))}) AS notes " +
                 "WITH w, b, collect({item:t, notes:notes, kind:head(labels(t))}) AS tastings " +
-                "OPTIONAL MATCH (w)<-[o:OWNS]-(:User) " +
-                "RETURN {item:w, bottler:b, numBottles:count(o), tastings:tastings, kind:'TastingNoteSplat'} AS result ORDER BY w.name",
+                "OPTIONAL MATCH (w)<-[o:OWNS]-(u:User) " +
+                "RETURN {item:w, bottler:b, numBottles:count(o), numOwners:count(distinct u), tastings:tastings, kind:'TastingNoteSplat'} AS result ORDER BY w.name",
             {}, res); break;
         case "user": queryResponse(
             "MATCH (u:User) " +
@@ -424,10 +424,10 @@ function findWhisky(ast, res) {
     queryResponse(
         "MATCH (w:Whisky)-[:DISTILLERY]->(d:Distillery) " +
         "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-        "OPTIONAL MATCH (w)<-[o:OWNS]-(:User) " +
-        "WITH w, d, b, o " +
+        "OPTIONAL MATCH (w)<-[o:OWNS]-(u:User) " +
+        "WITH w, d, b, o, u " +
         "WHERE " + where + " " +
-        "RETURN {item:w, bottler:b, numBottles:count(o), kind:head(labels(w))} AS result ORDER BY w.name",
+        "RETURN {item:w, bottler:b, numBottles:count(o), numOwners:count(distinct u), kind:head(labels(w))} AS result ORDER BY w.name",
         params, res);
 }
 
