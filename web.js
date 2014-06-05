@@ -46,6 +46,7 @@ function interpret(parsed, res) {
         case "set": set(parsed, res); break;
         case "unset": unset(parsed, res); break;
         case "remove": remove(parsed, res); break;
+        case "find": find(parsed, res); break;
     }
 }
 
@@ -403,7 +404,55 @@ function removeTastingNote(id, res) {
         res);
 }
 
+//////////// FIND ////////////
+
+function find(parsed, res) {
+    switch(parsed.kind) {
+        case "whisky": findWhisky(parsed.ast, res); break;
+    }
+}
+
+function findWhisky(ast, res) {
+    var params = {};
+
+    var where = buildCypherWhereClause(ast);
+
+    queryResponse(
+        "MATCH (w:Whisky) " +
+        "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
+        "WITH w, b " +
+        "WHERE " + where + " " +
+        "RETURN {item:w, bottler:b, kind:head(labels(w))} AS result",
+        params, res);
+}
+
+function buildCypherWhereClause(ast) {
+    var kind = ast.kind
+    switch(kind) {
+        case "and":
+        case "or":
+            var left = ast.input[0];
+            var right = ast.input[1];
+            return "(" + buildCypherWhereClause(left) + " " + kind.toUpperCase() + " " + buildCypherWhereClause(right) + ")";
+        case "is":
+            return "(w." + ast.input + "=true)";
+        case "=":
+        case ">":
+        case "<":
+            var key = ast.input[0];
+            var value = ast.input[1];
+            if (kind == "=" && key == "bottler") return "(b IS NOT NULL AND b.name = " + JSON.stringify(value.toLowerCase()) + ")";
+            return "(w." + key + kind + JSON.stringify(value) + ")";
+        case "not":
+            return "NOT(" + buildCypherWhereClause(ast.input) + ")";
+    }
+}
+
+
+//////////// HELPERS ////////////
+
 function queryResponse(query, params, res) {
+    console.log(query);
     db.query(query, params, function(err, data) {
         if (err) {
             console.log("Query failed: " + err);

@@ -39,6 +39,8 @@ start
   / removeWhiskyFromTasting
   / removeTasting
 
+  / findWhisky
+
 
 listEverything
   = "list"i WS "everything"i { return {operation:"listEverything"}; }
@@ -184,22 +186,27 @@ whiskyCaskingBottling
   = casking:year "/" bottling:year { return ["caskingBottling", [casking, bottling]]; }
 
 
+singleCaskLiteral = "single"i WS "cask"i
+singleCask
+  = singleCaskLiteral { return ["singleCask", true]; }
+caskStrengthLiteral = "cask"i WS "strength"i
+caskStrength
+  = caskStrengthLiteral { return ["caskStrength", true]; }
+peatedLiteral = "peated"i
+peated
+  = peatedLiteral { return ["peated", true]; }
+blendedLiteral = "blended"i
+blended
+  = blendedLiteral { return ["blended", true]; }
+
 whiskyPercentage
   = p:float "%" { return ["percentage", p]; }
 whiskyBottler
   = "bottled"i WS "by"i WS s:qString { return ["bottler", s]; }
-singleCask
-  = "single cask"i { return ["singleCask", true]; }
-caskStrength
-  = "cask strength"i { return ["caskStrength", true]; }
-whiskyPeated
-  = "peated"i { return ["peated", true]; }
 whiskyOriginalBottling
   = "ob"i { return ["originalBottling", true]; }
 bottleSize
   = size:number WS "cl"i { return ["bottleSize", size]; }
-blended
-  = "blended"i { return ["blended", true]; }
 bottledYear
   = "bottled"i WS year:year { return ["bottledYear", year]; }
 caskNumbers
@@ -243,16 +250,70 @@ sherryRefillWood
 whiskyModifier
   = singleCask
   / caskStrength
+  / peated
+  / blended
+  / whiskyOriginalBottling
   / caskType
   / caskFinish
   / whiskyPercentage
   / whiskyBottler
-  / whiskyPeated
-  / whiskyOriginalBottling
   / bottleSize
-  / blended
   / bottledYear
   / caskNumbers
+
+
+findWhisky
+  = "find"i WS whisky WS "where"i WS ast:orExpression { return {operation:"find", kind:"whisky", ast:ast}; }
+orExpression
+  = left:andExpression WS "or"i WS right:orExpression { return {kind:"or", input:[left, right]}; }
+  / andExpression
+andExpression
+  = left:atomExpression WS "and"i WS right:andExpression { return {kind:"and", input:[left, right]}; }
+  / atomExpression
+atomExpression
+  = realAtomExpression
+  / "(" WS exp:orExpression WS ")" { return exp; }
+realAtomExpression
+  = unaryExpression
+  / operatorExpression
+unaryExpression
+  = not:"not"i ? WS
+  literal:( 
+    caskStrength
+    / singleCask
+    / blended
+    / peated 
+    / whiskyOriginalBottling
+  ) 
+  {
+    var exp = {kind:"is", input:literal[0]}; 
+    if (not) return {kind:"not", input:exp};
+    return exp;
+  }
+operatorExpression
+  = ageExpression
+  / percentageExpression
+  / caskTypeExpression
+  / bottlerExpression
+  / finishExpression
+percentageExpression
+  = op:gtLtEq ? WS wp:whiskyPercentage
+  { 
+    return {kind:(op || "="), input:wp};
+  }
+caskTypeExpression
+  = ct:caskType { return {kind:"=", input:ct}; }
+finishExpression
+  = cf:caskFinish { return {kind:"=", input:cf}; }
+bottlerExpression
+  = wb:whiskyBottler { return {kind:"=", input:wb}; }
+ageExpression
+  = op:gtLtEq ? WS age:whiskyAge 
+  {
+    return {kind:(op || "="), input:age};
+  }
+gtLtEq
+  = ">" / "<" / "="
 
 
 WS
