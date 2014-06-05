@@ -294,8 +294,9 @@ operatorExpression
   = ageExpression
   / percentageExpression
   / caskTypeExpression
-  / bottlerExpression
   / finishExpression
+  / bottlerExpression
+  / distilleryExpression
 percentageExpression
   = op:gtLtEq ? WS wp:whiskyPercentage
   { 
@@ -306,12 +307,14 @@ caskTypeExpression
 finishExpression
   = cf:caskFinish { return {kind:"=", input:cf}; }
 bottlerExpression
-  = wb:whiskyBottler { return {kind:"=", input:wb}; }
+  = wb:whiskyBottler { return {kind:"bottler", input:wb[1]}; }
 ageExpression
   = op:gtLtEq ? WS age:whiskyAge 
   {
     return {kind:(op || "="), input:age};
   }
+distilleryExpression
+  = "distilled"i WS "by"i WS d:qString { return {kind:"distillery", input:d}; }
 gtLtEq
   = ">" / "<" / "="
 

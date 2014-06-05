@@ -418,9 +418,9 @@ function findWhisky(ast, res) {
     var where = buildCypherWhereClause(ast);
 
     queryResponse(
-        "MATCH (w:Whisky) " +
+        "MATCH (w:Whisky)-[:DISTILLERY]->(d:Distillery) " +
         "OPTIONAL MATCH (w)-[:BOTTLER]->(b:Bottler) " +
-        "WITH w, b " +
+        "WITH w, d, b " +
         "WHERE " + where + " " +
         "RETURN {item:w, bottler:b, kind:head(labels(w))} AS result",
         params, res);
@@ -439,10 +439,11 @@ function buildCypherWhereClause(ast) {
         case "=":
         case ">":
         case "<":
-            var key = ast.input[0];
-            var value = ast.input[1];
-            if (kind == "=" && key == "bottler") return "(b IS NOT NULL AND b.name = " + JSON.stringify(value.toLowerCase()) + ")";
-            return "(w." + key + kind + JSON.stringify(value) + ")";
+            return "(w." + ast.input[0] + kind + JSON.stringify(ast.input[1]) + ")";
+        case "bottler":
+            return "(b IS NOT NULL AND b.name = " + JSON.stringify(ast.input.toLowerCase()) + ")";
+        case "distillery":
+            return "(d.name = " + JSON.stringify(ast.input.toLowerCase()) + ")";
         case "not":
             return "NOT(" + buildCypherWhereClause(ast.input) + ")";
     }
