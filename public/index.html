@@ -25,17 +25,13 @@ body {
 .console {
     position: absolute;
     left: 3%;
-    bottom: 20em;
+    bottom: 10em;
     font-size: 12;
     width:94%;
 }
 
 .help {
-    font-size: 9;
-    position: absolute;
-    left: 40%;
-    bottom: 0%;
-    width:55%;
+    color:lightgrey;
 }
 
 #query {
@@ -85,7 +81,7 @@ body {
 }
 
 .result {
-    height:350;
+    height:380;
     padding: 5px;
     background-color: rgba(0, 0, 0, 0.3);
     border-top-left-radius:5px;
@@ -104,9 +100,14 @@ body {
 
             $("#query").keypress(function (e) {
                 if (e.which == '13') {
-                    $("#result").html("");
                     var query = $("#query")[0].value;
-                    $.post("/app", {query: query}, renderResult);
+                    $("#result").html("");
+                    if (query.length > 0) {
+                        $.post("/app", {query: query}, renderResult);
+                        $(".help").hide();
+                    } else {
+                        $(".help").show();
+                    }
                 }
             });
         });
@@ -281,52 +282,65 @@ body {
     </div>
     <div class="console">
         <div class="resultCount"></div>
-        <div id="result" class="result"></div>
-        <input id="query" type="text"/>
-    </div>
-    <div class="help">
-        <ul>
-            <li>basics
+        <div class="result">
+            <div id="result"></div>
+            <div class="help">
                 <ul>
-                    <li>list (whisky|distilleries|bottlers|regions|users|bottles|tastings|tasting notes)</li>
-                    <li>(add|remove) (distillery|bottler|region|whisky|tasting) &lt;name|id&gt;</li>
-                    <li>add whisky &lt;definition...&gt;</li>
-                </ul>
-            </li>
-            <li>modifications
-                <ul>
-                    <li>(set|unset) (whisky|distillery) &lt;id|name&gt; &lt;modifier&gt;</li>
-                    <li>set user &lt;username&gt; owns whisky &lt;id&gt;</li>
-                    <li>unset user &lt;username&gt; owns bottle &lt;id&gt;</li>
-                </ul>
-            </li>
-            <li>tastings
-                <ul>
-                    <li>add tasting &lt;name&gt; on 2014-05-26</li>
-                    <li>(set|unset) tasting "&lt;name&gt;" includes whisky &lt;id&gt;</li>
-                    <li>set tasting &lt;name&gt; order whisky &lt;id&gt; &lt;order&gt;</li>
-                </ul>
-            </li>
-            <li>tasting notes
-                <ul>
-                    <li>add tasting note for whisky &lt;id&gt; in tasting "&lt;name&gt;" &lt;notes...&gt; &lt;totalPoints&gt;
-                        <ul><li>note: &lt;nose|palate|finish|overall&gt; [&lt;points&gt;] "&lt;comment&gt;"</li></ul>
-                    </li>
-                    <li>set tasting note &lt;id&gt; user &lt;username&gt;</li>
-                </ul>
-            </li>
-            <li>searching for whisky
-                <ul>
-                    <li>find whisky where &lt;expression&gt;</li>
-                    <li>expressions
+                    <li>basics
                         <ul>
-                            <li>&gt;50% and (peated or cask strength)</li>
-                            <li>distilled by Ardbeg and bottled by "Gordon and MacPhail"</li>
+                            <li>list (whisky|distilleries|bottlers|regions|users|bottles|tastings|tasting notes)</li>
+                            <li>(add|remove) (distillery|bottler|region|whisky|tasting) &lt;name|id&gt;</li>
+                            <li>add whisky &lt;distillery&gt; ["&lt;special name&gt;"] &lt;modifiers...&gt;</li>
+                            <li>modifier examples
+                                <ul>
+                                    <li>24yo 1985/2009 70cl</li>
+                                    <li>peated single cask 44% bottled by "Gordon and MacPhail"</li>
+                                    <li>55% cask strength single cask ob sherry cask port finish bottled 2010</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>changes
+                        <ul>
+                            <li>(set|unset) whisky &lt;id&gt; &lt;modifier&gt;</li>
+                            <li>(set|unset) distillery "&lt;name&gt;" (closed|region &lt;name&gt;)</li>
+                            <li>set user &lt;username&gt; owns whisky &lt;id&gt;</li>
+                            <li>unset user &lt;username&gt; owns bottle &lt;id&gt;</li>
+                        </ul>
+                    </li>
+                    <li>searching for whisky
+                        <ul>
+                            <li>find whisky where &lt;expression&gt;</li>
+                            <li>expression examples
+                                <ul>
+                                    <li>&gt;50% and (peated or cask strength) and distillery closed</li>
+                                    <li>distilled by Mortlach and bottled by "Gordon and MacPhail"</li>
+                                    <li>region Speyside and >10yo and sherry cask</li>
+                                    <li>peated and (sherry cask or oak cask) and not owned</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>tastings
+                        <ul>
+                            <li>add tasting &lt;name&gt; on 2014-05-26</li>
+                            <li>(set|unset) tasting "&lt;name&gt;" includes whisky &lt;id&gt;</li>
+                            <li>set tasting &lt;name&gt; order whisky &lt;id&gt; &lt;order&gt;</li>
+                        </ul>
+                    </li>
+                    <li>tasting notes
+                        <ul>
+                            <li>add tasting note for whisky &lt;id&gt; in tasting "&lt;name&gt;" &lt;notes...&gt; &lt;totalPoints&gt;
+                                <ul><li>note: &lt;nose|palate|finish|overall&gt; [&lt;points&gt;] "&lt;comment&gt;"</li></ul>
+                            </li>
+                            <li>set tasting note &lt;id&gt; user &lt;username&gt;</li>
                         </ul>
                     </li>
                 </ul>
-            </li>
-        </ul>
+            </div>
+        </div>
+        <input id="query" type="text" autofocus="autofocus"/>
     </div>
+
 </body>
 </html>
