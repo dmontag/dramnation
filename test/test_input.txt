@@ -1,0 +1,49 @@
+add region Islay
+add region Islands
+add region Speyside
+add region Highlands
+
+add distillery Ardbeg
+set distillery Ardbeg region Islay
+set distillery Ardbeg closed
+add distillery Glenmorangie
+set distillery Glenmorangie region Highlands
+add distillery "Ben Nevis"
+set distillery "Ben Nevis" region Speyside
+add distillery Talisker
+set distillery Talisker region Islands
+add distillery Aberlour
+set distillery Aberlour region Speyside
+add distillery Longmorn
+
+add bottler Cadenhead
+add bottler Gordon and MacPhail
+
+%w1% add whisky Ardbeg 10yo 46% Bourbon cask Peated bottled by Cadenhead
+%w2% add whisky Glenmorangie 10yo 40% Oak/bourbon cask OB
+%w3% add whisky Glenmorangie "Quinta Ruban" 12yo 46% Port finish OB
+%w4% add whisky Ben Nevis 17yo 46% Bourbon cask bottled by Cadenhead
+%w5% add whisky Talisker 30yo 57.3% Cask strength Sherry/bourbon cask Peated OB Bottled 2010
+%w6% add whisky Aberlour "Abunadh Batch 47" 60.7% Single cask 70cl Sherry cask OB
+%w7% add whisky Longmorn 1966/2011 47.5% Single cask Sherry refill cask bottled by "Gordon and MacPhail"
+
+set whisky %w1% 100cl
+
+%b1% set user test1 owns whisky %w1%
+%b2% set user test1 owns whisky %w2%
+%b3% set user test2 owns whisky %w2%
+%b4% set user test3 owns whisky %w3%
+unset user test3 owns bottle %b4%
+
+add tasting "Tasting 1" on 2014-05-25
+set tasting "Tasting 1" includes whisky %w4%
+set tasting "Tasting 1" includes whisky %w5%
+set tasting "Tasting 1" includes whisky %w6%
+set tasting "Tasting 1" order whisky %w4% 1
+set tasting "Tasting 1" order whisky %w5% 2
+set tasting "Tasting 1" order whisky %w6% 3
+set tasting "Tasting 1" includes whisky %w7%
+unset tasting "Tasting 1" includes whisky %w7%
+
+%t1% add tasting note for whisky %w4% in tasting "Tasting 1" nose 21p "Floral, vanilla." palate great finish 20p good overall 22p "good allround" 90p
+set tasting note %t1% user user3
