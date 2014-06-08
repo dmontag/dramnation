@@ -77,7 +77,7 @@ function loadTestScript(path, done) {
 function handleLine(line, callback, done) {
     var req = { body: {query: line} };
     var res = { send: function(result) {
-        callback(result.result);
+        callback(result.result || []);
         done();
     }};
     handler.handleRequest(req, res);
@@ -223,6 +223,13 @@ describe("Find entities", function() {
         handleLine("find whisky where >50% and not peated", function(result) {
             expect(result.length).to.equal(1);
             expect(findItem(result, "id", variables["w6"])).to.be.an('object');
+        }, done);
+    });
+
+    it("should find whisky with vanilla note", function(done) {
+        handleLine("find whisky where note contains \"vanilla\"", function(result) {
+            expect(result.length).to.equal(1);
+            expect(findItem(result, "id", variables["w4"])).to.be.an('object');
         }, done);
     });
 })
