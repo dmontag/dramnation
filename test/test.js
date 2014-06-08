@@ -232,4 +232,15 @@ describe("Find entities", function() {
             expect(findItem(result, "id", variables["w4"])).to.be.an('object');
         }, done);
     });
+
+    
+
+    it("should find tasting notes with vanilla", function(done) {
+        handleLine("find tasting note containing \"vanilla\"", function(result) {
+            expect(result.length).to.equal(1);
+            expect(findItem(result, "id", variables["w4"])).to.be.an('object');
+        }, done);
+    });
+
+
 })
