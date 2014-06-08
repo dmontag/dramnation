@@ -171,15 +171,58 @@ describe("List entities", function() {
             });
         }, done);
     });
+
+    it("should list tasting notes", function(done) {
+        handleLine("list tasting notes", function(result) {
+            expect(result.length).to.equal(1);
+            expect(unwrap(findItem(result, "id", variables["w4"]).result.item).id).to.equal(variables["w4"]);
+            var notesForTastings = findItem(result, "id", variables["w4"]).result.tastings.map(function(d) {return d.notes;});
+            var tastingNotes = notesForTastings[0];
+            var user = unwrap(tastingNotes[0].user);
+            var note = unwrap(tastingNotes[0].item);
+            expect(note).to.deep.equal({
+                id: variables["t1"],
+                nose: "Floral, vanilla.",
+                nosePoints: 21,
+                palate: "great",
+                finish: "good",
+                finishPoints: 20,
+                overall: "good allround",
+                overallPoints: 22,
+                points: 90
+            });
+            expect(user.name).to.equal("test3");
+        }, done);
+    });
 })
 
 
 describe("Find entities", function() {
-    before(function(done) {loadTestScript("./test/test_input.txt", done);});
+    var variables;
+    before(function(done) {variables = loadTestScript("./test/test_input.txt", done);});
 
-    it("should list correct number of tastings", function(done) {
+    it("should find cask strength whisky", function(done) {
         handleLine("find whisky where cask strength", function(result) {
             expect(result.length).to.equal(1);
+            expect(unwrap(findItem(result, "id", variables["w5"]).result.item)).to.deep.equal({
+                id: variables["w5"],
+                name: "talisker 30yo",
+                displayName: "Talisker 30yo",
+                age: 30,
+                percentage: 57.3,
+                caskType: "sherryBourbon",
+                caskStrength: true,
+                peated: true,
+                originalBottling: true,
+                bottledYear: 2010
+            });
+        }, done);
+    });
+
+    it("should find strong and non-peated whisky", function(done) {
+        handleLine("find whisky where >50% and not peated", function(result) {
+            expect(result.length).to.equal(1);
+            expect(findItem(result, "id", variables["w6"])).to.be.an('object');
         }, done);
     });
 })

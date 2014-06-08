@@ -46,4 +46,4 @@ set tasting "Tasting 1" includes whisky %w7%
 unset tasting "Tasting 1" includes whisky %w7%
 
 %t1% add tasting note for whisky %w4% in tasting "Tasting 1" nose 21p "Floral, vanilla." palate great finish 20p good overall 22p "good allround" 90p
-set tasting note %t1% user user3
+set tasting note %t1% user test3
