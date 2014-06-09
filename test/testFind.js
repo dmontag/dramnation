@@ -49,6 +49,14 @@ describe("Find entities", function() {
         }, done);
     });
 
+    it("should find distilleries with weak whisky", function(done) {
+        common.handleLine("find distillery with whisky where not owned", function(result) {
+            expect(result.length).to.equal(6);
+            expect(findItem(result, "name", "lagavulin")).to.be.an('object');
+        }, done);
+    });
+
+
 
     it("should find tasting notes with vanilla", function(done) {
         common.handleLine("find tasting note containing \"vanilla\"", function(result) {

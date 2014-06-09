@@ -32,7 +32,7 @@ describe("List entities", function() {
 
     it("should list distilleries", function(done) {
         common.handleLine("list distilleries", function(result) {
-            expect(result.length).to.equal(6);
+            expect(result.length).to.equal(7);
             expect(unwrap(findItem(result, "name", "ardbeg").result.item)).to.deep.equal({
                 name: "ardbeg",
                 displayName: "Ardbeg",
